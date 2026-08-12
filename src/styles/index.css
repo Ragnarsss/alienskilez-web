@@ -47,7 +47,8 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
+    /* El suavizado lo controla Lenis (hook global), no el navegador. */
+    scroll-behavior: auto;
     /* El navbar es sticky: evita que los anchors queden bajo la barra. */
     scroll-padding-top: 5rem;
     -webkit-text-size-adjust: 100%;
@@ -165,5 +166,32 @@
       linear-gradient(to right, rgb(238 238 238 / 0.05) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(238 238 238 / 0.05) 1px, transparent 1px);
     background-size: 64px 64px;
+  }
+
+  /*
+   * Aura que sigue al cursor (ALS-029). Activada por JS (useMouseAura)
+   * solo con mouse real y sin prefers-reduced-motion: por defecto queda en
+   * opacity 0, así que si el hook nunca corre el fondo se queda estático.
+   */
+  .mouse-aura-layer {
+    opacity: 0;
+    transition: opacity 400ms ease;
+    background: radial-gradient(
+      480px circle at var(--mouse-x, 50%) var(--mouse-y, 20%),
+      var(--color-accent-glow),
+      transparent 70%
+    );
+  }
+  .mouse-aura-active .mouse-aura-layer {
+    opacity: 1;
+  }
+
+  /* Escenario 3D del glyph del hero — ver HeroMark3D.tsx (ADR-12, ALS-028). */
+  .hero-mark-scene {
+    perspective: 900px;
+  }
+  .hero-mark-object {
+    transform-style: preserve-3d;
+    will-change: transform;
   }
 }

@@ -11,8 +11,11 @@ import { Proceso } from "@/shared/components/sections/Proceso"
 import { Servicios } from "@/shared/components/sections/Servicios"
 import { Testimonios } from "@/shared/components/sections/Testimonios"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
+import { useLenis } from "@/shared/hooks/useLenis"
 
 export default function App() {
+  useLenis()
+
   return (
     // reducedMotion="user" desactiva las animaciones de Framer Motion cuando
     // el sistema pide prefers-reduced-motion.

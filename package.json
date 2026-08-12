@@ -14,7 +14,9 @@
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
     "@tailwindcss/vite": "^4.3.3",
+    "3dsvg": "^0.2.1",
     "framer-motion": "^13.1.0",
+    "lenis": "^1.3.26",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.85.0",
