@@ -3,6 +3,10 @@
 One-pager de conversión para ALIENSKILEZ, productor musical en La Serena, Chile. Todo el sitio
 existe para un solo resultado: que el visitante escriba por WhatsApp.
 
+> 📚 **Documentación completa en [`docs/`](docs/README.md)** — arquitectura y ADRs, lineamientos de
+> ingeniería, sistema de diseño, puertas de calidad, requisitos, casos de uso y backlog.
+> El estado real del proyecto vive en [`docs/backlog.md`](docs/backlog.md).
+
 ## Stack
 
 React 19 + TypeScript estricto + Vite (flavor rolldown) · Tailwind CSS v4 · Framer Motion ·
@@ -64,8 +68,9 @@ vive en `useBookingForm`, nunca en el JSX.
   de lint (`purity`, `immutability`, `set-state-in-render`…) vienen dentro de
   `eslint-plugin-react-hooks@7`; el paquete `eslint-plugin-react-compiler` quedó absorbido ahí y no
   se instala por separado.
-- **Contraste verificado** (no asumido): el verde `#08CB00` rinde 9.1:1 sobre negro, pero los
-  botones con fondo verde llevan texto **negro**, no gris claro.
+- **Contraste calculado** (no asumido): el verde `#08CB00` rinde 9.55:1 sobre negro, pero los
+  botones con fondo verde llevan texto **negro** (9.55:1), no gris claro (1.89:1, reprueba).
+  Tabla completa en [docs/design-system.md](docs/design-system.md).
 - **`prefers-reduced-motion`** se respeta vía `<MotionConfig reducedMotion="user">` y un bloque en
   `index.css` que apaga glow, parallax y scroll suave.
 
