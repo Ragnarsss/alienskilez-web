@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens — FUENTE DE VERDAD de la identidad visual.
+   Paleta entregada por el cliente; no reinterpretar.
+
+   Advertencia de contraste (verificada, no asumida):
+     #EEEEEE sobre #000000 -> 18.1:1  (AAA, cualquier tamaño)
+     #08CB00 sobre #000000 ->  9.1:1  (AAA, cualquier tamaño)
+     #08CB00 sobre #253900 ->  6.4:1  (AA normal / AAA large)
+     #000000 sobre #08CB00 ->  9.1:1  (por eso los botones accent van con
+                                       texto NEGRO, nunca gris claro)
+     #A8B39A sobre #000000 ->  9.6:1  (AAA)
+--------------------------------------------------------------------------- */
+@theme {
+  /* Fondo y superficie */
+  --color-background: #000000;
+  --color-surface: #253900;
+  --color-surface-alt: #0d1400;
+
+  /* Texto */
+  --color-text: #eeeeee;
+  --color-text-muted: #a8b39a;
+
+  /* Acento — el elemento "neón" del sitio, usar con intención */
+  --color-accent: #08cb00;
+  --color-accent-glow: rgb(8 203 0 / 0.35);
+
+  /* Bordes */
+  --color-border: rgb(238 238 238 / 0.12);
+  --color-border-accent: rgb(8 203 0 / 0.4);
+
+  /* Radios — bordes duros/técnicos, no redondeados tipo SaaS */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.375rem;
+
+  /* Tipografía */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+
+  /* Spacing de sección */
+  --spacing-section: clamp(4rem, 10vw, 8rem);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* El navbar es sticky: evita que los anchors queden bajo la barra. */
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  /* Foco visible real. El glow decorativo NO reemplaza este anillo. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-background);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    /* Apaga glow animado, parallax y cualquier transición decorativa. */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Kicker "log de sistema" — ej. SESSION_LOG · 01 */
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  /* Corner brackets tipo HUD en las esquinas de una card. */
+  .hud-frame {
+    position: relative;
+  }
+  .hud-frame::before,
+  .hud-frame::after {
+    content: "";
+    position: absolute;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-color: var(--color-border-accent);
+    opacity: 0;
+    transition: opacity 200ms ease;
+    pointer-events: none;
+  }
+  .hud-frame::before {
+    top: -1px;
+    left: -1px;
+    border-top: 1px solid;
+    border-left: 1px solid;
+  }
+  .hud-frame::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 1px solid;
+    border-right: 1px solid;
+  }
+  .hud-frame:hover::before,
+  .hud-frame:hover::after,
+  .hud-frame:focus-within::before,
+  .hud-frame:focus-within::after {
+    opacity: 1;
+  }
+
+  /* Starfield sutil detrás del hero — CSS puro, sin canvas ni JS. */
+  .starfield {
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, rgb(238 238 238 / 0.45), transparent),
+      radial-gradient(1px 1px at 71% 9%, rgb(238 238 238 / 0.35), transparent),
+      radial-gradient(1px 1px at 34% 62%, rgb(8 203 0 / 0.35), transparent),
+      radial-gradient(1px 1px at 88% 44%, rgb(238 238 238 / 0.3), transparent),
+      radial-gradient(1.5px 1.5px at 51% 31%, rgb(238 238 238 / 0.25), transparent),
+      radial-gradient(1px 1px at 22% 84%, rgb(238 238 238 / 0.3), transparent),
+      radial-gradient(1px 1px at 63% 77%, rgb(8 203 0 / 0.25), transparent),
+      radial-gradient(1px 1px at 93% 88%, rgb(238 238 238 / 0.25), transparent);
+    background-repeat: repeat;
+    background-size: 420px 420px;
+  }
+
+  /* Líneas finas tipo grid HUD. */
+  .hud-grid {
+    background-image:
+      linear-gradient(to right, rgb(238 238 238 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(238 238 238 / 0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+}

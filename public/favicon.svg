@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Favicon interino de ALIENSKILEZ: onda sobre fondo negro, en el verde
+       del acento (#08CB00). Reemplazar cuando exista el isotipo definitivo. -->
+  <rect width="64" height="64" rx="6" fill="#000000"/>
+  <g stroke="#08CB00" stroke-width="4" stroke-linecap="round">
+    <path d="M12 32v0"/>
+    <path d="M20 24v16"/>
+    <path d="M28 17v30"/>
+    <path d="M36 12v40"/>
+    <path d="M44 20v24"/>
+    <path d="M52 27v10"/>
+  </g>
+</svg>
