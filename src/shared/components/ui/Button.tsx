@@ -11,8 +11,8 @@ const BASE =
   "disabled:pointer-events-none disabled:opacity-50"
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  // Texto NEGRO sobre el verde neón: 9.1:1. Con #EEEEEE encima bajaría a
-  // ~2:1 y quedaría ilegible — ver advertencia de contraste en index.css.
+  // Texto NEGRO sobre el verde neón: 9.55:1 (AAA). Con #EEEEEE encima cae a
+  // 1.89:1 y reprueba — ver la tabla de contrastes en index.css.
   primary:
     "bg-accent text-background hover:shadow-[0_0_24px_var(--color-accent-glow)] " +
     "hover:brightness-110",

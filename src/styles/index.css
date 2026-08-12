@@ -4,13 +4,15 @@
    Design tokens — FUENTE DE VERDAD de la identidad visual.
    Paleta entregada por el cliente; no reinterpretar.
 
-   Advertencia de contraste (verificada, no asumida):
-     #EEEEEE sobre #000000 -> 18.1:1  (AAA, cualquier tamaño)
-     #08CB00 sobre #000000 ->  9.1:1  (AAA, cualquier tamaño)
-     #08CB00 sobre #253900 ->  6.4:1  (AA normal / AAA large)
-     #000000 sobre #08CB00 ->  9.1:1  (por eso los botones accent van con
-                                       texto NEGRO, nunca gris claro)
-     #A8B39A sobre #000000 ->  9.6:1  (AAA)
+   Contrastes medidos (WCAG 2.1, calculados — no estimados):
+     #EEEEEE sobre #000000 -> 18.10:1  AAA
+     #08CB00 sobre #000000 ->  9.55:1  AAA
+     #08CB00 sobre #253900 ->  5.74:1  AA  (no AAA: no usar en texto chico)
+     #A8B39A sobre #000000 ->  9.58:1  AAA
+     #000000 sobre #08CB00 ->  9.55:1  AAA  <- botones de acento
+     #EEEEEE sobre #08CB00 ->  1.89:1  REPRUEBA <- por esto el texto de los
+                                                   botones de acento es NEGRO
+   Detalle completo en docs/design-system.md §2.
 --------------------------------------------------------------------------- */
 @theme {
   /* Fondo y superficie */
