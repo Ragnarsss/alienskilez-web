@@ -241,78 +241,90 @@ Assets del template de Vite eliminados; `icons.svg` reemplazado por íconos de r
 Alcance nuevo, sumado el 2026-08-12 a partir de referencias del propio Productor: el sitio de
 [Aka Kimosabi](https://kimosabi-portfolio-hqfutm.vercel.app/) para la sección de música
 conectada a streaming, y el hero de [flownewyork.cl](https://flownewyork.cl) para el efecto de
-"aura" que sigue al mouse. Cada ticket de acá tiene decisiones de arquitectura abiertas — ver
-`architecture.md` §7 antes de implementar.
+"aura" que sigue al mouse. Las decisiones de arquitectura de esta épica ya están **cerradas**
+(ADR-11 y ADR-12 en `architecture.md` §6) — lo que queda pendiente es implementación y, en el caso
+de AWS, credenciales que este entorno no tiene.
 
-### ALS-026 — Integración directa con Spotify del artista
+### ALS-026 — Integración directa con Spotify del artista (Lambda)
 
-- Prioridad: **P1** · Esfuerzo: M · Estado: Pendiente — **decisión de arquitectura abierta**
+- Prioridad: **P1** · Esfuerzo: M · Estado: **Parcialmente hecho** — handler de referencia escrito,
+  sin desplegar
 
-El portfolio debe mostrar el catálogo real de ALIENSKILEZ en Spotify (lanzamientos, tal vez la
-discografía completa), no un registro manual copiado a `constants/portfolio.ts`.
+Decisión cerrada (ADR-11): función AWS Lambda con Function URL, secretos en Secrets Manager, CORS
+restringido, caché en memoria con TTL. El handler de referencia vive en
+[`aws/spotify-catalog/`](../aws/spotify-catalog/README.md).
 
-**El problema de fondo:** este proyecto tiene como decisión explícita "sin backend, sin secretos"
-(ADR-1). La Web API de Spotify que permite listar álbumes/tracks con metadata rica requiere
-Client Credentials — un `client_secret` que **no puede vivir en el bundle** de un sitio estático
-sin exponerse a cualquiera que abra las devtools. Hay tres caminos, cada uno con un costo
-distinto, evaluados en `architecture.md` §7 (ADR-11):
+**Lo que falta, en orden:**
+1. Cuenta/región de AWS donde desplegar (del Productor, ya que "el deploy es en AWS" pero sin
+   especificar cuál cuenta).
+2. `Spotify Artist ID` real de ALIENSKILEZ — ningún camino evita necesitarlo.
+3. Registrar la app en el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   para obtener `client_id`/`client_secret` y cargarlos en Secrets Manager.
+4. Desplegar la función (manual o con IaC — ver ALS-031) y anotar la Function URL resultante.
+5. Conectar el frontend: reemplazar la carga estática de `portfolio.ts` por un `fetch` a la
+   Function URL, con estado de carga — es el primer dato del sitio que no viene ya resuelto en el
+   bundle, así que necesita su propio skeleton (mismo criterio de "degradar, no romper" de ADR-6,
+   aplicado a un estado "cargando" en vez de a un dato pendiente).
 
-1. **Embed oficial de Spotify** (`open.spotify.com/embed/artist/{id}`) — cero secretos, cero
-   mantenimiento, pero la UI la controla Spotify, no el sistema de diseño del sitio.
-2. **Web API vía función serverless** (Vercel Function) — UI propia, pero introduce el primer
-   "backend" del proyecto, aunque sea mínimo.
-3. **Copiar manualmente a `portfolio.ts`** (lo que ya existe) — cero infraestructura nueva, pero
-   se desincroniza del catálogo real apenas sale un lanzamiento nuevo.
+**Límite honesto de esta sesión:** sin credenciales de AWS ni el Artist ID real, los pasos 1 a 4 no
+se pueden ejecutar ni verificar acá. El handler está escrito y su forma de entrada/salida
+documentada, pero **no probado contra Spotify real**.
 
-**Bloqueado por:** decisión del Productor sobre cuál de los tres caminos tomar (ver pregunta
-abierta en la respuesta de esta sesión) + el `Spotify Artist ID` real de ALIENSKILEZ.
+### ALS-027 — Integración con YouTube (mismo patrón que ALS-026)
 
-### ALS-027 — Integración con YouTube
+- Prioridad: P2 · Esfuerzo: M · Estado: Pendiente — depende de ALS-026
 
-- Prioridad: P2 · Esfuerzo: M · Estado: Pendiente — depende de la misma decisión que ALS-026
+Mismo patrón de Lambda; puede ser un segundo handler dentro de la misma función o una función
+aparte, a decidir cuando se aborde. La YouTube Data API v3 usa una API key de solo lectura (no
+Client Credentials), así que su secreto es de menor sensibilidad que el de Spotify, pero se
+guarda igual en Secrets Manager, nunca en el bundle.
 
-Mismo dilema que Spotify: la YouTube Data API v3 sí admite una API key restringida por dominio
-(no requiere OAuth para datos públicos), lo que la hace viable sin backend — pero sigue siendo una
-credencial nueva en un proyecto que hoy no tiene ninguna. Alternativa sin credenciales: embed de
-un video o playlist puntual (`youtube.com/embed/videoseries?list=...`), sin listado dinámico de
-"últimos uploads".
-
-**Bloqueado por:** misma decisión de ALS-026, aplicada a YouTube.
+**Bloqueado por:** que ALS-026 esté desplegado y probado primero — no tiene sentido resolver el
+patrón dos veces en paralelo.
 
 ### ALS-028 — Hero: marca 3D interactiva (rotación por arrastre)
 
-- Prioridad: P2 · Esfuerzo: L · Estado: Pendiente — falta el asset
+- Prioridad: P2 · Esfuerzo: L · Estado: **Hecho (placeholder)** — asset final pendiente
 
-El Hero debe llevar una pieza 3D de la marca (a definir si es el isotipo tipo "alien" mencionado
-por el Productor) que rote al hacer click y arrastrar.
+Decisión cerrada (ADR-12): placeholder propio con la interacción completa, sin esperar al isotipo
+final. Implementado sin Three.js/WebGL: `transform-style: preserve-3d` + `perspective` de CSS,
+`pointermove` durante el arrastre mapeado a `rotateX`/`rotateY`, e inercia al soltar vía
+`requestAnimationFrame` con decaimiento.
 
-**Sin Three.js/WebGL** — no se justifica esa dependencia para un objeto que rota por arrastre; se
-puede lograr con `transform-style: preserve-3d` + `perspective` de CSS, mapeando el delta de
-`pointermove` durante el arrastre a `rotateX`/`rotateY`, con inercia al soltar (`requestAnimationFrame`
-+ decaimiento). Es la misma familia de truco que un "card flip" 3D, escalado a arrastre libre en
-dos ejes.
+**Punto de reemplazo:** el Productor está diseñando el isotipo 3D final como SVG aparte. Cuando
+esté listo, se reemplaza en un solo lugar — ver el comentario `PLACEHOLDER` en el componente del
+hero y §4 de `design-system.md`. El mecanismo de arrastre/inercia no cambia, solo el dibujo.
 
-**Bloqueado por:** no existe todavía un asset 3D ni un isotipo definitivo (ver ALS-006). Se puede
-prototipar con una forma geométrica simple (ej. el favicon actual extrudido en capas) mientras
-tanto, si el Productor prefiere no esperar al isotipo final.
+**Criterios:** arrastrar con mouse o touch rota la pieza en los dos ejes; al soltar, la rotación
+decae con inercia en vez de detenerse en seco; con `prefers-reduced-motion: reduce` la pieza
+sigue rotable pero sin la inercia final (queda donde se soltó).
 
 ### ALS-029 — Hero: aura que sigue al mouse
 
-- Prioridad: P2 · Esfuerzo: S · Estado: Pendiente
+- Prioridad: P2 · Esfuerzo: S · Estado: **Hecho**
 
-Efecto de glow radial centrado en la posición del cursor, sobre el fondo del Hero. Implementable
-sin dependencias: `pointermove` actualiza dos custom properties CSS (`--mouse-x`/`--mouse-y`)
-sobre el contenedor, y un `radial-gradient(circle at var(--mouse-x) var(--mouse-y), ...)` sigue el
-cursor. Mismo criterio que el resto de los motivos gráficos del sitio (`design-system.md` §5):
-CSS puro, sin canvas ni WebGL, costo de runtime cercano a cero.
+Efecto de glow radial centrado en la posición del cursor, sobre el fondo del Hero. Sin
+dependencias: `pointermove` actualiza dos custom properties CSS (`--mouse-x`/`--mouse-y`) sobre el
+contenedor, y un `radial-gradient(circle at var(--mouse-x) var(--mouse-y), ...)` sigue el cursor.
+Mismo criterio que el resto de los motivos gráficos del sitio (`design-system.md` §5): CSS puro,
+sin canvas ni WebGL, costo de runtime cercano a cero.
 
-**Regla no negociable:** el efecto se desactiva completo bajo `prefers-reduced-motion` (mismo
-mecanismo que ya cubre el resto del movimiento del sitio, `design-system.md` §6) y no debe
-activarse en touch — no hay cursor que seguir.
+**Verificado:** el efecto se desactiva completo bajo `prefers-reduced-motion` y no se activa en
+touch (se detecta con `window.matchMedia("(pointer: fine)")`, no hay cursor que seguir en un
+dispositivo táctil).
 
-**Criterios:** el aura sigue al cursor con la latencia de un frame; en touch no aparece ningún
-rastro fantasma del último punto tocado; con `prefers-reduced-motion: reduce` el fondo queda
-estático.
+### ALS-031 — Infraestructura AWS (IaC, cuenta, permisos)
+
+- Prioridad: P2 · Esfuerzo: M · Estado: Pendiente — bloquea el despliegue de ALS-026
+
+Definir cómo se despliega y versiona la infraestructura de `aws/spotify-catalog/`: manual desde la
+consola (rápido para un solo endpoint, pero no reproducible) vs. IaC (SAM, CDK o Terraform —
+reproducible y versionable, más setup inicial). Dado que hoy es una sola función Lambda con un
+único secreto, empezar manual y migrar a IaC si se suman más funciones es una secuencia razonable
+— no hay que resolverlo de una vez.
+
+**Criterios:** documentado el paso a paso real de despliegue una vez ejecutado contra la cuenta de
+AWS del Productor; la Function URL resultante queda anotada en `aws/spotify-catalog/README.md`.
 
 ---
 
@@ -451,14 +463,15 @@ vista. Ver ADR-5.
 | ALS-023 | — | — | — | Diferido | — |
 | ALS-024 | — | — | — | Diferido | ALS-019 |
 | ALS-025 | — | — | — | Diferido | — |
-| ALS-026 | G | **P1** | M | Pendiente | **Decisión de arquitectura + Spotify Artist ID** |
-| ALS-027 | G | P2 | M | Pendiente | Misma decisión que ALS-026 |
-| ALS-028 | G | P2 | L | Pendiente | Asset 3D / isotipo (ALS-006) |
-| ALS-029 | G | P2 | S | Pendiente | — |
+| ALS-026 | G | **P1** | M | 🟡 Parcial — handler sin desplegar | Cuenta AWS + Artist ID + ALS-031 |
+| ALS-027 | G | P2 | M | Pendiente | ALS-026 desplegado |
+| ALS-028 | G | P2 | L | ✅ Hecho (placeholder) | Asset final: ALS-006 |
+| ALS-029 | G | P2 | S | ✅ Hecho | — |
 | ALS-030 | A | P2 | S | Pendiente | Productor (cuenta Business) |
+| ALS-031 | G | P2 | M | Pendiente | Cuenta AWS del Productor |
 
 **Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
-ALS-026 a ALS-029 son alcance nuevo que **mejora** el sitio pero no impide publicarlo — el sitio
+ALS-026, ALS-027 y ALS-031 son alcance nuevo que **mejora** el sitio pero no impide publicarlo — el sitio
 puede lanzarse con el portfolio manual actual y sumar la integración con Spotify después.
 
 ## 5. Gobernanza

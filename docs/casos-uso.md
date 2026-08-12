@@ -215,12 +215,13 @@ flowchart LR
 - RN-01: el portfolio se presenta como progresión, no como grilla plana — cuenta una evolución.
 - RN-02: no se publican créditos que no sean reales (ver CU-TRA-001 RN-01).
 
-### Extensión propuesta, no implementada (RF-POR-002)
-Cuando se cierre ADR-11 (`architecture.md` §7), el paso 2 deja de leer solo de
-`PORTFOLIO_ITEMS` y pasa a reflejar el catálogo real de Spotify — vía embed oficial o vía una
-función serverless, según lo que se decida. En ese momento corresponde una ficha `CU-POR-002`
-propia, con su propio actor secundario (Spotify como sistema activo, no pasivo) y sus propios
-flujos de excepción (catálogo sin conexión, límite de cuota si hubiera Web API de por medio).
+### Extensión decidida, no desplegada todavía (RF-POR-002)
+ADR-11 (`architecture.md` §6) ya definió cómo: una función serverless en AWS Lambda. Cuando esté
+desplegada (ALS-026), el paso 2 deja de leer solo de `PORTFOLIO_ITEMS` y pasa a reflejar el
+catálogo real de Spotify, con un estado de carga intermedio mientras responde la función. En ese
+momento corresponde una ficha `CU-POR-002` propia, con Spotify como actor secundario activo (no
+pasivo) y sus propios flujos de excepción — la función no responde a tiempo, o el catálogo llega
+vacío.
 
 ---
 

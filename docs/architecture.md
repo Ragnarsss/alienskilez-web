@@ -10,9 +10,15 @@ Todo el sitio existe para **un solo resultado**: que un artista escriba por What
 portafolio, no es un EPK, no es una tarjeta de presentación. Cada sección se justifica por cuánto
 acerca al visitante a ese mensaje, o se elimina.
 
-Esa restricción es la que explica casi todas las decisiones de abajo: no hay backend porque el
-cierre ocurre en WhatsApp; no hay CMS porque el contenido cambia poco; no hay router porque una
-página que se recorre scrolleando convierte mejor que una que obliga a navegar.
+Esa restricción es la que explica casi todas las decisiones de abajo: el cierre ocurre en
+WhatsApp, así que el flujo de conversión no necesita backend; no hay CMS porque el contenido
+cambia poco; no hay router porque una página que se recorre scrolleando convierte mejor que una
+que obliga a navegar.
+
+**Excepción acotada (ADR-11):** el catálogo de Spotify/YouTube del portfolio sí depende de una
+función serverless en AWS Lambda — el resto del sitio, y en particular todo el flujo de
+agendamiento, sigue sin backend propio. Ver ADR-11 para el porqué y el límite exacto de esa
+excepción.
 
 ## 2. Stack
 
@@ -28,8 +34,10 @@ Deliberadamente más chico que un proyecto institucional. Es una decisión, no u
 - **ESLint flat config** + `typescript-eslint` + `eslint-plugin-react-hooks@7` (que ya incluye
   las reglas del React Compiler, ADR-4) + Prettier.
 
-Sin backend, sin base de datos, sin autenticación, sin i18n, sin router, sin librería de
-componentes. Cada una de esas ausencias es una decisión registrada abajo.
+Sin backend propio para el flujo de conversión, sin base de datos, sin autenticación, sin i18n,
+sin router, sin librería de componentes. Cada una de esas ausencias es una decisión registrada
+abajo. La única infraestructura fuera del sitio estático es la función serverless de ADR-11, de
+solo lectura y sin datos de usuario.
 
 ## 3. Mapa de módulos
 
@@ -266,51 +274,61 @@ La tabla completa está en [`design-system.md`](./design-system.md) §2.
 resultaron 9.55:1 y 5.74:1. El acento sobre `--color-surface` es **AA, no AAA** — por eso la
 regla de no usarlo en texto chico es más estricta de lo que parecía.
 
-## 7. Decisiones de arquitectura abiertas
-
-A diferencia de la sección anterior, estas **no están cerradas**. Se documentan igual porque ya
-tienen consecuencias reales sobre el diseño (aparecen como requisito propuesto en
-`rf-rnf-catalogo.md` y como ticket en `backlog.md`), pero falta que alguien con autoridad sobre el
-negocio elija entre las opciones.
-
-### ADR-11 (abierta) — Cómo conectar el portfolio con Spotify y YouTube
+### ADR-11 — Catálogo de Spotify/YouTube vía una función serverless en AWS Lambda
 
 **Contexto:** RF-POR-002 pide que el portfolio refleje el catálogo real de ALIENSKILEZ en Spotify
 (y, en menor medida, YouTube) sin depender de que alguien lo copie a mano en `portfolio.ts` cada
-vez que sale un tema. El problema es que esto **choca de frente con ADR-1** — "sin backend, sin
-secretos" — porque la Web API de Spotify que da metadata rica (álbumes, tracks, fechas) usa Client
-Credentials, y un `client_secret` no puede vivir en el bundle de un sitio estático sin quedar
-visible en las devtools de cualquiera.
+vez que sale un tema. Esto tensiona con ADR-1 ("sin backend, sin secretos"): la Web API de Spotify
+que da metadata rica (álbumes, tracks, fechas) usa Client Credentials, y un `client_secret` no
+puede vivir en el bundle de un sitio estático sin quedar visible en las devtools de cualquiera.
+Se evaluaron tres caminos — embed oficial de Spotify (cero infraestructura, pero la UI la define
+Spotify), función serverless (UI propia, pero introduce infraestructura), y seguir cargando a mano
+(cero infraestructura, pero es exactamente el problema que este RF quiere resolver.
+**Decisión:** función serverless, desplegada en **AWS Lambda** (no Vercel/Netlify Functions,
+aunque técnicamente resolverían lo mismo) — el Productor ya opera en AWS y prefiere consolidar ahí
+en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (canal de contacto).
+**Diseño de la función (especificado, no desplegado — ver el límite en `backlog.md` ALS-026):**
+- **AWS Lambda con Function URL**, sin API Gateway — es un único endpoint `GET` de solo lectura,
+  API Gateway sumaría cuotas y configuración que este caso no necesita.
+- El `client_id`/`client_secret` de Spotify viven en **AWS Secrets Manager**, nunca en una
+  variable de entorno del frontend ni en el repositorio.
+- CORS restringido al origen de producción del sitio — nunca `*`.
+- Caché en memoria del contenedor de Lambda con TTL (ej. 1 hora): a este volumen de tráfico no
+  justifica DynamoDB ni ElastiCache, y respeta el rate limit de Spotify sin sumar infraestructura.
+- El mismo patrón cubre YouTube Data API v3 (API key restringida, no OAuth) si ALS-027 avanza —
+  incluso puede ser la misma función con un segundo handler, no un servicio aparte.
+**Consecuencia sobre ADR-1:** ADR-1 sigue vigente para **el flujo de conversión** — WhatsApp
+directo, sin servidor propio. Se abre una excepción acotada y explícita: una función de solo
+lectura, sin datos de usuario, sin estado, que no toca en nada el booking. No es un giro hacia
+"tener backend" en general.
+**Por qué no las otras dos:** el embed oficial (opción descartada) habría sido más simple y
+seguía siendo válido — queda registrado como alternativa si la función Lambda no llega a
+justificarse en el uso real. La carga manual (opción descartada) es lo que ya existía y es
+exactamente el problema que este RF busca resolver.
+**Límite honesto:** el handler de referencia está escrito (`aws/spotify-catalog/`), pero **no
+desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
+disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
 
-**Opciones evaluadas, sin descartar ninguna todavía:**
+### ADR-12 — Hero: placeholder interino sin depender del asset final
 
-| Opción | Secretos expuestos | Control de la UI | Se desincroniza del catálogo | Costo de infraestructura |
-|---|---|---|---|---|
-| **1. Embed oficial** (`open.spotify.com/embed/artist/{id}`) | Ninguno | Bajo — la UI la define Spotify | No — siempre en vivo | Cero, sigue siendo 100% estático |
-| **2. Función serverless** (Vercel/Netlify Function que llama la Web API y cachea la respuesta) | Ninguno expuesto al cliente (el secret vive en el entorno de la función) | Total — UI propia con el sistema de diseño del sitio | No | Introduce el primer "backend", aunque sea mínimo — rompe ADR-1 tal como está escrito hoy |
-| **3. Carga manual** (lo que ya existe en `portfolio.ts`) | Ninguno | Total | **Sí** — es exactamente el problema que RF-POR-002 quiere resolver | Cero |
+**Contexto:** el Hero debe llevar una pieza de marca en pseudo-3D que rote al hacer click y
+arrastrar. No existe todavía un isotipo 3D definitivo — el Productor lo está diseñando aparte como
+un SVG 3D.
+**Decisión:** se implementa ahora un placeholder propio (forma geométrica simple, en la misma
+familia visual que el favicon actual) con la interacción completa —arrastre, rotación,
+inercia—, en vez de esperar al asset final para tener algo funcional que evaluar.
+**Por qué no esperar:** la interacción (cómo rota, cuánta inercia tiene, cómo se siente al
+arrastrar) es independiente del dibujo que rota. Construirla ahora permite ajustar la sensación
+de la interacción sin bloquearse en el asset, y el swap del asset final es después un cambio de
+una sola pieza (ver §4 de `design-system.md` para el punto exacto de reemplazo).
+**Por qué sin Three.js/WebGL:** es una rotación de una pieza plana en dos ejes por arrastre, no
+geometría 3D real ni iluminación — `transform-style: preserve-3d` + `perspective` de CSS alcanza,
+mapeando el delta de `pointermove` a `rotateX`/`rotateY`. Sumar un motor 3D completo para esto
+sería la misma sobre-ingeniería que ADR-2 evita con los primitivos de UI.
+**Consecuencia:** el placeholder queda marcado explícitamente como interino en el código (mismo
+espíritu que ADR-6 con los datos pendientes, aplicado acá a un asset en vez de a un dato).
 
-YouTube tiene una variante propia: su Data API v3 sí admite una API key de solo lectura
-restringida por dominio (no requiere OAuth para datos públicos), lo que la hace viable sin
-backend — pero sigue siendo la primera credencial del proyecto, y una API key mal restringida es
-una forma más silenciosa de exponer algo que un `client_secret` obviamente sensible.
-
-**Lo que falta para cerrar esto:** una decisión del Productor sobre si vale la pena introducir la
-primera pieza de infraestructura del proyecto (opción 2) a cambio de una UI propia, o si el embed
-oficial (opción 1) alcanza — y el `Spotify Artist ID` real de ALIENSKILEZ, que ninguna de las tres
-opciones puede evitar necesitar.
-**Seguimiento:** ALS-026 (Spotify) y ALS-027 (YouTube) en `backlog.md`.
-
-### Pendiente de definición — Hero con marca 3D interactiva
-
-RF nuevo (sin ID formal todavía) pide una pieza 3D de la marca que rote al hacer click y arrastrar,
-más un efecto de "aura" que sigue al cursor en el fondo del Hero. La segunda parte no tiene
-decisión pendiente — es CSS puro, mismo criterio que el resto de los motivos gráficos (§5 de
-`design-system.md`). La primera sí: no existe todavía un asset 3D ni un isotipo definitivo (ver
-"Sin imágenes propias" en §8), así que el ticket está bloqueado por diseño, no por arquitectura.
-**Seguimiento:** ALS-028 (hero 3D) y ALS-029 (aura de mouse) en `backlog.md`.
-
-## 8. Deuda conocida y diferida a propósito
+## 7. Deuda conocida y diferida a propósito
 
 Documentado como decisión, no como olvido:
 
@@ -324,7 +342,7 @@ Documentado como decisión, no como olvido:
 - **Sin imágenes propias.** No hay fotos del estudio ni isotipo definitivo; el favicon actual es
   interino. Bloqueado por falta de las piezas gráficas, no por código.
 
-## 9. Documentos relacionados
+## 8. Documentos relacionados
 
 - [`engineering-guidelines.md`](./engineering-guidelines.md) — cómo se escribe código acá.
 - [`design-system.md`](./design-system.md) — tokens, contrastes verificados, tipografía.

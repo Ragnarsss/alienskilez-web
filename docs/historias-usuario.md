@@ -192,9 +192,10 @@ Fecha: 2026-08-12
   reproducirla sin salir del sitio.
 - **CA-03:** Dado que un trabajo aún no tiene pista cargada, cuando lo veo, entonces aparece un
   marcador de pendiente, **nunca un reproductor roto**.
-- **CA-04 (RF-POR-002, aún no implementado):** Dado que sale un lanzamiento nuevo en Spotify,
-  cuando visito el sitio, entonces lo veo reflejado sin que nadie haya tocado código — ver la
-  decisión de arquitectura abierta en `architecture.md` §7 (ADR-11).
+- **CA-04 (RF-POR-002, decidido pero aún no desplegado):** Dado que sale un lanzamiento nuevo en
+  Spotify, cuando visito el sitio, entonces lo veo reflejado sin que nadie haya tocado código —
+  la arquitectura ya está definida en `architecture.md` §6 (ADR-11), falta el despliegue real
+  (ALS-026 en `backlog.md`).
 
 ---
 

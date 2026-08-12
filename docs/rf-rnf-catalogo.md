@@ -28,7 +28,7 @@ Módulos: **NAV** navegación · **EST** el estudio · **SRV** servicios · **PO
 | RF-SRV-002 | SRV | Cada servicio debe ofrecer el CTA que corresponde a su naturaleza: agendar sesión o cotizar proyecto. | Alta | El CTA de cada card se deriva de `tier`; los 6 de tipo sesión muestran "Agenda tu sesión" y los 4 de proyecto "Cotiza tu proyecto" (CP-SRV-002). | HU-SRV-001 | CU-SRV-001 | Verificado |
 | RF-SRV-003 | SRV | El sitio **no** debe publicar tarifas. | Alta | No existe ningún precio en el sitio; el copy explica que el valor depende del alcance (CP-SRV-003). | HU-SRV-001 | CU-SRV-001 | Verificado |
 | RF-POR-001 | POR | El sitio debe mostrar trabajos destacados en formato de progresión temporal, con reproductor embebido cuando exista la pista. | Media | La línea de tiempo renderiza las entradas de `PORTFOLIO_ITEMS`; con `embedUrl` presente monta el iframe, y sin ella un marcador — nunca un iframe vacío (CP-POR-001). | HU-POR-001 | CU-POR-001 | Verificado |
-| RF-POR-002 | POR | El portfolio debe conectar con el catálogo real de ALIENSKILEZ en Spotify (lanzamientos, discografía), no depender de que alguien lo copie a mano en cada release. | **Alta** | El sitio muestra los lanzamientos vigentes en Spotify sin editar código ni constantes al salir un tema nuevo (CP-POR-002). | HU-POR-001 | CU-POR-001 (extiende) | **Propuesto** — decisión de arquitectura abierta, ver ADR-11 de `architecture.md` y ALS-026 de `backlog.md`. Cuando se cierre la decisión, corresponde una ficha `CU-POR-002` propia en `casos-uso.md`. |
+| RF-POR-002 | POR | El portfolio debe conectar con el catálogo real de ALIENSKILEZ en Spotify (lanzamientos, discografía), no depender de que alguien lo copie a mano en cada release. | **Alta** | El sitio muestra los lanzamientos vigentes en Spotify sin editar código ni constantes al salir un tema nuevo (CP-POR-002). | HU-POR-001 | CU-POR-001 (extiende) | **Aprobado** — arquitectura decidida (ADR-11: AWS Lambda), handler de referencia escrito. **No verificado**: falta desplegarlo contra AWS real (ALS-026). Cuando se despliegue corresponde una ficha `CU-POR-002` propia en `casos-uso.md`. |
 | RF-TRA-001 | TRA | El sitio debe poder mostrar cifras de trayectoria y testimonios de artistas. | Media | Las secciones Alcance y Testimonios existen y consumen sus constantes (CP-TRA-001). | HU-TRA-001 | CU-TRA-001 | Verificado |
 | RF-TRA-002 | TRA | Mientras no existan datos reales, las cifras y testimonios deben mostrarse como pendientes explícitos, nunca como valores inventados. | **Alta** | Toda entrada con `pending: true` se renderiza con marcador visible y atenuada; ninguna cifra o cita ficticia en el sitio (CP-TRA-002). | HU-TRA-001 | CU-TRA-001 | Verificado |
 | RF-PRO-001 | PRO | El sitio debe explicar el proceso de agendamiento paso a paso. | Media | Se muestran los 4 pasos de `PROCESS_STEPS` en orden (CP-PRO-001). | HU-PRO-001 | CU-PRO-001 | Verificado |
@@ -120,20 +120,20 @@ definidos por la tabla de §2.
 - **Razón de negocio:** ALS-003 (créditos reales del portfolio) ya identificó el problema de fondo:
   un portfolio copiado a mano se desactualiza apenas hay un lanzamiento nuevo, justo cuando más
   importa mostrarlo. Conectar con la fuente real lo resuelve de raíz.
-- **Tensión con una decisión ya cerrada:** este requisito choca de frente con ADR-1
-  (`architecture.md`) — "sin backend, sin secretos". La Web API de Spotify que da metadata rica
-  requiere `client_secret`, que no puede vivir en un bundle público. Por eso el requisito queda
-  **Propuesto**, no Aprobado: la decisión de *cómo* se implementa (ADR-11) define si el proyecto
-  sigue siendo 100% estático o gana su primera pieza de infraestructura.
-- **Reglas de negocio (provisionales, sujetas a la decisión de ADR-11):**
-  - RN-01: cualquiera sea el mecanismo elegido, no debe requerir editar código para reflejar un
-    lanzamiento nuevo.
+- **Tensión con una decisión ya cerrada, ahora resuelta con una excepción acotada:** este
+  requisito chocaba con ADR-1 (`architecture.md`) — "sin backend, sin secretos". La Web API de
+  Spotify que da metadata rica requiere `client_secret`, que no puede vivir en un bundle público.
+  ADR-11 lo resuelve con una función AWS Lambda de solo lectura: ADR-1 sigue vigente para el flujo
+  de conversión, y se abre una excepción explícita y acotada solo para el catálogo.
+- **Reglas de negocio:**
+  - RN-01: reflejar un lanzamiento nuevo no debe requerir editar código ni redesplegar el sitio.
   - RN-02: ninguna credencial secreta (`client_secret`, tokens de larga duración) puede quedar
-    expuesta en el bundle del cliente — es una línea roja, no una preferencia de diseño.
+    expuesta en el bundle del cliente — vive en AWS Secrets Manager, es una línea roja.
 - **Criterio:** CP-POR-002 — un lanzamiento nuevo en Spotify aparece en el sitio sin deploy de
-  código, solo con el paso natural del tiempo (o, en el camino 3 de ADR-11, con una actualización
-  de constante que sigue siendo más rápida que antes).
-- **Estado:** Propuesto. Ver ADR-11 de `architecture.md` y ALS-026/ALS-027 de `backlog.md`.
+  código del frontend, solo con el paso natural del tiempo (dentro del TTL de caché de la Lambda).
+- **Estado:** Aprobado, no verificado. Arquitectura decidida (ADR-11), handler de referencia en
+  `aws/spotify-catalog/`, pendiente de desplegar contra AWS real — ver ALS-026/ALS-027 de
+  `backlog.md`.
 
 ## 5. Lo que no se pudo verificar todavía
 
