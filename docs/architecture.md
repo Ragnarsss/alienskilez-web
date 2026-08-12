@@ -43,13 +43,16 @@ solo lectura y sin datos de usuario.
 
 ```mermaid
 flowchart TD
-  Main["main.tsx"] --> App["App.tsx<br/>(composición + MotionConfig)"]
+  Main["main.tsx"] --> App["App.tsx<br/>(composición + MotionConfig + useLenis)"]
 
   App --> Sections["shared/components/sections/<br/>Navbar · Hero · Estudio · Servicios<br/>Portfolio · Alcance · Proceso<br/>Testimonios · Faq · Contacto · Footer"]
 
-  Sections --> UI["shared/components/ui/<br/>Button · Badge · Section · Container · Kicker"]
+  Sections --> UI["shared/components/ui/<br/>Button · Badge · Section · Container · Kicker<br/>GeometricAccent"]
   Sections --> Const["shared/constants/<br/>site · whatsapp · sections · limits<br/>services · content · portfolio<br/>alcance · testimonials"]
-  Sections --> Hooks["shared/hooks/<br/>useScrolled"]
+  Sections --> Hooks["shared/hooks/<br/>useLenis · useScrolled · useMouseAura<br/>useDraggableRotation"]
+
+  Hero["Hero.tsx"] --> HeroDecor["HeroSkyScene.tsx · HeroShip.tsx · HeroMark3D.tsx"]
+  Sections --- Hero
 
   Contacto["Contacto.tsx"] -.->|"único consumidor"| Booking
   Sections --- Contacto
@@ -77,15 +80,15 @@ más un hook, y el único que lo consume es `Contacto.tsx`.
 No hay entidades persistidas — no hay base de datos. Lo que sí existe es un modelo de **datos de
 negocio tipados**, todos en `shared/constants/`, que las secciones consumen sin conocer su origen.
 
-| Tipo | Archivo | Forma | Estado del dato |
-|---|---|---|---|
-| `Service` | `constants/services.ts` | `id`, `label`, `description`, `tier` | **Real** — 10 servicios confirmados |
-| `SITE` / `SOCIALS` | `constants/site.ts` | nombre, ciudad, redes | Real, salvo URL de Spotify |
-| `WHATSAPP` | `constants/whatsapp.ts` | número internacional | **Placeholder bloqueante** |
-| `PortfolioItem` | `constants/portfolio.ts` | `title`, `artist`, `role`, `year`, `embedUrl` | Placeholder (5 slots) |
-| `ImpactMetric` | `constants/alcance.ts` | `value`, `label`, `caption`, `measurement` | Placeholder `[XX]` (4 métricas) |
-| `Testimonial` | `constants/testimonials.ts` | `quote`, `author`, `role` | Placeholder (3 slots) |
-| `BookingFormValues` | `features/booking/booking.schema.ts` | inferido de zod (`z.infer`) | Real |
+| Tipo                | Archivo                              | Forma                                         | Estado del dato                     |
+| ------------------- | ------------------------------------ | --------------------------------------------- | ----------------------------------- |
+| `Service`           | `constants/services.ts`              | `id`, `label`, `description`, `tier`          | **Real** — 10 servicios confirmados |
+| `SITE` / `SOCIALS`  | `constants/site.ts`                  | nombre, ciudad, redes                         | Real, salvo URL de Spotify          |
+| `WHATSAPP`          | `constants/whatsapp.ts`              | número internacional                          | **Placeholder bloqueante**          |
+| `PortfolioItem`     | `constants/portfolio.ts`             | `title`, `artist`, `role`, `year`, `embedUrl` | Placeholder (5 slots)               |
+| `ImpactMetric`      | `constants/alcance.ts`               | `value`, `label`, `caption`, `measurement`    | Placeholder `[XX]` (4 métricas)     |
+| `Testimonial`       | `constants/testimonials.ts`          | `quote`, `author`, `role`                     | Placeholder (3 slots)               |
+| `BookingFormValues` | `features/booking/booking.schema.ts` | inferido de zod (`z.infer`)                   | Real                                |
 
 Cada tipo con dato pendiente lleva una bandera `pending: boolean`. Los componentes la usan para
 degradar visualmente (atenuar el número, no renderizar un `<iframe>` vacío, ocultar un enlace sin
@@ -191,6 +194,7 @@ estudios) no son "sesiones" — decir "agenda tu sesión de marketing" suena mal
 alcance.
 **Decisión:** dos CTA con copy distinto según el tipo de trabajo, ambos apuntando al **mismo**
 formulario (`#contacto`):
+
 - **"Agenda tu sesión"** — servicios con `tier: "sesion"` (producción, grabación, mezcla, máster,
   visuales, show en vivo). Es también el CTA persistente del navbar.
 - **"Cotiza tu proyecto"** — servicios con `tier: "proyecto"` (asesoría, manager, marketing,
@@ -288,6 +292,7 @@ Spotify), función serverless (UI propia, pero introduce infraestructura), y seg
 aunque técnicamente resolverían lo mismo) — el Productor ya opera en AWS y prefiere consolidar ahí
 en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (canal de contacto).
 **Diseño de la función (especificado, no desplegado — ver el límite en `backlog.md` ALS-026):**
+
 - **AWS Lambda con Function URL**, sin API Gateway — es un único endpoint `GET` de solo lectura,
   API Gateway sumaría cuotas y configuración que este caso no necesita.
 - El `client_id`/`client_secret` de Spotify viven en **AWS Secrets Manager**, nunca en una
@@ -297,17 +302,17 @@ en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (cana
   justifica DynamoDB ni ElastiCache, y respeta el rate limit de Spotify sin sumar infraestructura.
 - El mismo patrón cubre YouTube Data API v3 (API key restringida, no OAuth) si ALS-027 avanza —
   incluso puede ser la misma función con un segundo handler, no un servicio aparte.
-**Consecuencia sobre ADR-1:** ADR-1 sigue vigente para **el flujo de conversión** — WhatsApp
-directo, sin servidor propio. Se abre una excepción acotada y explícita: una función de solo
-lectura, sin datos de usuario, sin estado, que no toca en nada el booking. No es un giro hacia
-"tener backend" en general.
-**Por qué no las otras dos:** el embed oficial (opción descartada) habría sido más simple y
-seguía siendo válido — queda registrado como alternativa si la función Lambda no llega a
-justificarse en el uso real. La carga manual (opción descartada) es lo que ya existía y es
-exactamente el problema que este RF busca resolver.
-**Límite honesto:** el handler de referencia está escrito (`aws/spotify-catalog/`), pero **no
-desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
-disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
+  **Consecuencia sobre ADR-1:** ADR-1 sigue vigente para **el flujo de conversión** — WhatsApp
+  directo, sin servidor propio. Se abre una excepción acotada y explícita: una función de solo
+  lectura, sin datos de usuario, sin estado, que no toca en nada el booking. No es un giro hacia
+  "tener backend" en general.
+  **Por qué no las otras dos:** el embed oficial (opción descartada) habría sido más simple y
+  seguía siendo válido — queda registrado como alternativa si la función Lambda no llega a
+  justificarse en el uso real. La carga manual (opción descartada) es lo que ya existía y es
+  exactamente el problema que este RF busca resolver.
+  **Límite honesto:** el handler de referencia está escrito (`aws/spotify-catalog/`), pero **no
+  desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
+  disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
 
 ### ADR-12 — Hero: placeholder interino sin depender del asset final
 
@@ -327,6 +332,25 @@ mapeando el delta de `pointermove` a `rotateX`/`rotateY`. Sumar un motor 3D comp
 sería la misma sobre-ingeniería que ADR-2 evita con los primitivos de UI.
 **Consecuencia:** el placeholder queda marcado explícitamente como interino en el código (mismo
 espíritu que ADR-6 con los datos pendientes, aplicado acá a un asset en vez de a un dato).
+
+### ADR-13 — Motion imperativo (paralaje, contadores) requiere su propio check de `prefers-reduced-motion`
+
+**Contexto:** ALS-032 sumó animaciones ligadas a `useScroll`/`useTransform`/`animate()` de Framer
+Motion (paralaje del Hero, traza de la timeline de Portfolio, contador de Alcance) — motion
+imperativo, no las props declarativas `initial`/`animate`/`whileInView` que ya cubre
+`<MotionConfig reducedMotion="user">` en `App.tsx`.
+**Decisión:** cada uno de esos hooks/componentes llama `useReducedMotion()` de Framer Motion y
+neutraliza su propia animación explícitamente (el paralaje y la nave del Hero quedan fijos en una
+posición de reposo, la traza de Portfolio queda llena, el contador de Alcance salta directo al
+valor final) — no se asume que `MotionConfig` los cubre.
+**Por qué:** se verificó que `MotionConfig reducedMotion="user"` solo intercepta las animaciones
+que pasan por las props declarativas de un componente `motion.*`; un valor de scroll leído con
+`useScroll` y escrito a mano vía `style={{ y: ... }}` nunca pasa por esas props, así que
+`MotionConfig` no tiene nada que interceptar ahí. Confirmarlo evitó un hueco de accesibilidad que
+habría sido fácil de no notar (build y lint pasan igual con o sin el check).
+**Regla general que se desprende:** todo motion nuevo que use `useTransform`/`useScroll`/
+`animate()` fuera de las props declarativas de Framer necesita su propio `useReducedMotion()` —
+no alcanza con que `MotionConfig` esté configurado en la raíz.
 
 ## 7. Deuda conocida y diferida a propósito
 

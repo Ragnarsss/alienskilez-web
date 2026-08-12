@@ -36,6 +36,7 @@ que entregar. Están numerados primero porque **el sitio no puede desplegarse si
 `"56938765513"` — WhatsApp **personal**, no Business todavía (ver ALS-030).
 
 **Criterios de aceptación:**
+
 1. ✅ `WHATSAPP.NUMBER` contiene el número real y `IS_WHATSAPP_PLACEHOLDER` evalúa `false`.
 2. ✅ La URL `wa.me` se construye correctamente con el mensaje codificado (verificado con el
    builder real, ver `useBookingForm.ts`).
@@ -84,12 +85,12 @@ ninguna entrada con `pending: true` en el sitio publicado.
 Las 4 métricas de `constants/alcance.ts` están en `[XX]`. Cada una ya documenta **cómo se calcula**
 en su campo `measurement`:
 
-| Métrica | De dónde sale |
-|---|---|
-| Años en producción | Año actual − año de inicio profesional. Se define una vez y se autoactualiza. |
-| Sesiones realizadas | Sesiones cerradas y pagadas. Fuente práctica: historial de WhatsApp Business o planilla de reservas. Cuenta sesiones, no clientes. |
-| Artistas atendidos | Clientes **únicos**, deduplicados. Un artista con 12 sesiones cuenta 1. |
-| Lanzamientos publicados | Singles/EPs/álbumes publicados con crédito de producción, mezcla o máster. Fuente: Spotify for Artists → créditos. |
+| Métrica                 | De dónde sale                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Años en producción      | Año actual − año de inicio profesional. Se define una vez y se autoactualiza.                                                      |
+| Sesiones realizadas     | Sesiones cerradas y pagadas. Fuente práctica: historial de WhatsApp Business o planilla de reservas. Cuenta sesiones, no clientes. |
+| Artistas atendidos      | Clientes **únicos**, deduplicados. Un artista con 12 sesiones cuenta 1.                                                            |
+| Lanzamientos publicados | Singles/EPs/álbumes publicados con crédito de producción, mezcla o máster. Fuente: Spotify for Artists → créditos.                 |
 
 La última es la más verificable por un cliente, así que conviene que sea exacta.
 
@@ -255,6 +256,7 @@ restringido, caché en memoria con TTL. El handler de referencia vive en
 [`aws/spotify-catalog/`](../aws/spotify-catalog/README.md).
 
 **Lo que falta, en orden:**
+
 1. Cuenta/región de AWS donde desplegar (del Productor, ya que "el deploy es en AWS" pero sin
    especificar cuál cuenta).
 2. `Spotify Artist ID` real de ALIENSKILEZ — ningún camino evita necesitarlo.
@@ -325,6 +327,41 @@ reproducible y versionable, más setup inicial). Dado que hoy es una sola funci�
 
 **Criterios:** documentado el paso a paso real de despliegue una vez ejecutado contra la cuenta de
 AWS del Productor; la Function URL resultante queda anotada en `aws/spotify-catalog/README.md`.
+
+### ALS-032 — Motion cinematográfico: Lenis, cielo del Hero y "Signal Geometry"
+
+- Prioridad: P2 · Esfuerzo: L · Estado: **Hecho**
+
+Capa de scroll/motion premium sobre la base ya existente (Lenis + Framer Motion), en fases:
+
+1. **Lenis calibrado** a un perfil "cinematográfico medio" (`duration`/`easing` en
+   `useLenis.ts`, constantes en `limits.ts`).
+2. **Hero**: reveal palabra-por-palabra del headline (con `aria-label` en el `<h1>` para que el
+   lector de pantalla siga escuchando la frase completa); `HeroSkyScene.tsx` (grid HUD + dos capas
+   de estrellas + un planeta, todo plano, con paralaje ligado al scroll del propio Hero — no de la
+   página); `HeroShip.tsx` (silueta de nave plana que cruza el Hero de punta a punta según el
+   progreso de scroll de la sección).
+3. **Ritmo transversal**: `Reveal` (`ui/Section.tsx`) gana la variante `scaleOnView`; márgenes de
+   viewport y paso de stagger unificados en `LIMITS.REVEAL_*` (antes vivían como literales
+   distintos por sección).
+4. **"Signal Geometry"** (`ui/GeometricAccent.tsx`): tres figuras planas de fondo —
+   `shards`/`chevrons`/`hex` — con el mismo lenguaje angular de `hud-frame`, usando solo tokens de
+   color ya existentes. `Section` acepta la prop `geometry` y las posiciona alternadas por sección.
+5. **Storytelling SVG**: en Portfolio, la línea de la timeline pasó de `border-l` estático a un
+   track + traza que avanza con el scroll (`useScroll`+`scaleY`); en Proceso, una barra de
+   progreso horizontal se dibuja al entrar en viewport (sin depender de la posición de cada card
+   en el grid responsive, que habría sido frágil entre breakpoints).
+6. **Conversión**: `Alcance.tsx` cuenta 0→valor cuando la métrica ya es un número real (no toca el
+   placeholder `[XX]` de ADR-6); el CTA primario (`Button.tsx`) suma un glow que "respira"
+   (`cta-breathe`, se pausa en hover/focus).
+
+**Verificado:** `npm run build`, `npm run lint` y `npm run test` (24/24) limpios tras cada fase.
+Todo lo nuevo respeta `prefers-reduced-motion` — vía `MotionConfig` para las animaciones
+declarativas (`initial`/`whileInView`) y vía `useReducedMotion()` explícito donde la animación es
+imperativa (paralaje del Hero, traza de Portfolio, contador de Alcance).
+
+**Pendiente de verificación manual** (fuera del alcance de esta sesión, sin navegador real): medir
+Lighthouse mobile/desktop contra el baseline pre-cambio, y probar en un dispositivo táctil real.
 
 ---
 
@@ -419,15 +456,18 @@ completo.
 Decisiones conscientes, no olvidos. Justificación en [`architecture.md`](./architecture.md) §7.
 
 ### ALS-023 — Analítica de conversión
+
 Hoy no se sabe cuántos visitantes llegan al formulario ni cuántos abren WhatsApp. Se agrega cuando
 haya tráfico real que medir; instrumentar antes es medir a ciegas.
 
 ### ALS-024 — Reducir el peso del JavaScript
+
 139 kB gzip es alto para una landing. El primer candidato es reemplazar Framer Motion por CSS o
 IntersectionObserver: el uso actual es scroll-reveal simple. Se hace **si** ALS-019 muestra que el
 LCP no cumple, no antes.
 
 ### ALS-025 — Preselección del servicio desde las cards
+
 Requiere un canal de estado entre componentes y un efecto de sincronización que pelea con las
 reglas de pureza del compilador, a cambio de ahorrar un clic en un `<select>` que ya está a la
 vista. Ver ADR-5.
@@ -436,39 +476,39 @@ vista. Ver ADR-5.
 
 ## 4. Tablero resumido
 
-| ID | Épica | Prio | Esfuerzo | Estado | Bloqueado por |
-|---|---|---|---|---|---|
-| ALS-001 | A | P0 | S | ✅ Hecho | — |
-| ALS-002 | A | P2 | S | Pendiente | Productor |
-| ALS-003 | A | P1 | M | Pendiente | Productor |
-| ALS-004 | A | P1 | S | Pendiente | Productor |
-| ALS-005 | A | P1 | S | Pendiente | Artistas |
-| ALS-006 | A | P2 | M | Pendiente | Diseño |
-| ALS-007 | B | P0 | M | ✅ Hecho | — |
-| ALS-008 | B | P0 | M | ✅ Hecho | — |
-| ALS-009 | B | P1 | S | ✅ Hecho | — |
-| ALS-010 | B | P0 | M | ✅ Hecho | — |
-| ALS-011 | C | P0 | S | ✅ Hecho | — |
-| ALS-012 | C | P0 | M | ✅ Hecho | — |
-| ALS-013 | C | P0 | M | ✅ Hecho | — |
-| ALS-014 | D | P0 | M | ✅ Hecho | — |
-| ALS-015 | D | P1 | L | ✅ Hecho | — |
-| ALS-016 | E | P1 | S | Pendiente | ALS-006 |
-| ALS-017 | E | P2 | S | Pendiente | — |
-| ALS-018 | E | P2 | S | Pendiente | — |
-| ALS-019 | E | P1 | S | Pendiente | — |
-| ALS-020 | E | P1 | S | Pendiente | — |
-| ALS-021 | F | P1 | L | ✅ Hecho | — |
-| ALS-022 | F | P0 | S | Pendiente | ALS-019, ALS-020 |
-| ALS-023 | — | — | — | Diferido | — |
-| ALS-024 | — | — | — | Diferido | ALS-019 |
-| ALS-025 | — | — | — | Diferido | — |
-| ALS-026 | G | **P1** | M | 🟡 Parcial — handler sin desplegar | Cuenta AWS + Artist ID + ALS-031 |
-| ALS-027 | G | P2 | M | Pendiente | ALS-026 desplegado |
-| ALS-028 | G | P2 | L | ✅ Hecho (placeholder) | Asset final: ALS-006 |
-| ALS-029 | G | P2 | S | ✅ Hecho | — |
-| ALS-030 | A | P2 | S | Pendiente | Productor (cuenta Business) |
-| ALS-031 | G | P2 | M | Pendiente | Cuenta AWS del Productor |
+| ID      | Épica | Prio   | Esfuerzo | Estado                             | Bloqueado por                    |
+| ------- | ----- | ------ | -------- | ---------------------------------- | -------------------------------- |
+| ALS-001 | A     | P0     | S        | ✅ Hecho                           | —                                |
+| ALS-002 | A     | P2     | S        | Pendiente                          | Productor                        |
+| ALS-003 | A     | P1     | M        | Pendiente                          | Productor                        |
+| ALS-004 | A     | P1     | S        | Pendiente                          | Productor                        |
+| ALS-005 | A     | P1     | S        | Pendiente                          | Artistas                         |
+| ALS-006 | A     | P2     | M        | Pendiente                          | Diseño                           |
+| ALS-007 | B     | P0     | M        | ✅ Hecho                           | —                                |
+| ALS-008 | B     | P0     | M        | ✅ Hecho                           | —                                |
+| ALS-009 | B     | P1     | S        | ✅ Hecho                           | —                                |
+| ALS-010 | B     | P0     | M        | ✅ Hecho                           | —                                |
+| ALS-011 | C     | P0     | S        | ✅ Hecho                           | —                                |
+| ALS-012 | C     | P0     | M        | ✅ Hecho                           | —                                |
+| ALS-013 | C     | P0     | M        | ✅ Hecho                           | —                                |
+| ALS-014 | D     | P0     | M        | ✅ Hecho                           | —                                |
+| ALS-015 | D     | P1     | L        | ✅ Hecho                           | —                                |
+| ALS-016 | E     | P1     | S        | Pendiente                          | ALS-006                          |
+| ALS-017 | E     | P2     | S        | Pendiente                          | —                                |
+| ALS-018 | E     | P2     | S        | Pendiente                          | —                                |
+| ALS-019 | E     | P1     | S        | Pendiente                          | —                                |
+| ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
+| ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
+| ALS-022 | F     | P0     | S        | Pendiente                          | ALS-019, ALS-020                 |
+| ALS-023 | —     | —      | —        | Diferido                           | —                                |
+| ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
+| ALS-025 | —     | —      | —        | Diferido                           | —                                |
+| ALS-026 | G     | **P1** | M        | 🟡 Parcial — handler sin desplegar | Cuenta AWS + Artist ID + ALS-031 |
+| ALS-027 | G     | P2     | M        | Pendiente                          | ALS-026 desplegado               |
+| ALS-028 | G     | P2     | L        | ✅ Hecho (placeholder)             | Asset final: ALS-006             |
+| ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
+| ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
+| ALS-031 | G     | P2     | M        | Pendiente                          | Cuenta AWS del Productor         |
 
 **Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
 ALS-026, ALS-027 y ALS-031 son alcance nuevo que **mejora** el sitio pero no impide publicarlo — el sitio

@@ -2,7 +2,9 @@ import { motion } from "framer-motion"
 import type { ReactNode } from "react"
 import { cn } from "@/shared/components/ui/cn"
 import { Container } from "@/shared/components/ui/Container"
+import { GeometricAccent, type GeometricVariant } from "@/shared/components/ui/GeometricAccent"
 import { Kicker } from "@/shared/components/ui/Kicker"
+import { LIMITS } from "@/shared/constants/limits"
 
 interface SectionProps {
   id: string
@@ -15,6 +17,8 @@ interface SectionProps {
   className?: string
   /** Superficie más oscura para alternar profundidad entre secciones. */
   tone?: "background" | "surface-alt"
+  /** Figura "Signal Geometry" de fondo, decorativa — ver ui/GeometricAccent.tsx. */
+  geometry?: GeometricVariant
 }
 
 export function Section({
@@ -26,6 +30,7 @@ export function Section({
   children,
   className,
   tone = "background",
+  geometry,
 }: SectionProps) {
   const headingId = title ? `${id}-title` : undefined
 
@@ -34,18 +39,21 @@ export function Section({
       id={id}
       aria-labelledby={headingId}
       className={cn(
-        "scroll-mt-20 py-section",
+        "relative scroll-mt-20 overflow-hidden py-section",
         tone === "surface-alt" && "bg-surface-alt",
         className,
       )}
     >
+      {geometry && (
+        <GeometricAccent variant={geometry} position={index && Number(index) % 2 === 0 ? "bottom-left" : "top-right"} />
+      )}
       <Container>
         {(kicker || title || description) && (
           <motion.header
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            viewport={{ once: true, margin: LIMITS.REVEAL_VIEWPORT_MARGIN_HEADER }}
+            transition={{ duration: LIMITS.REVEAL_DURATION_S, ease: "easeOut" }}
             className="mb-12 max-w-3xl"
           >
             {kicker && <Kicker index={index} label={kicker} className="mb-4" />}
@@ -75,17 +83,20 @@ export function Reveal({
   children,
   delay = 0,
   className,
+  scaleOnView = false,
 }: {
   children: ReactNode
   delay?: number
   className?: string
+  /** Suma una ligera escala 0.97→1 al reveal — pensado para cards de grilla, no para listas de texto. */
+  scaleOnView?: boolean
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, ease: "easeOut", delay }}
+      initial={{ opacity: 0, y: 24, scale: scaleOnView ? 0.97 : 1 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: LIMITS.REVEAL_VIEWPORT_MARGIN_CARD }}
+      transition={{ duration: LIMITS.REVEAL_DURATION_S, ease: "easeOut", delay }}
       className={className}
     >
       {children}

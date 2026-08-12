@@ -145,27 +145,28 @@
     opacity: 1;
   }
 
-  /* Starfield sutil detrás del hero — CSS puro, sin canvas ni JS. */
-  .starfield {
-    background-image:
-      radial-gradient(1px 1px at 12% 18%, rgb(238 238 238 / 0.45), transparent),
-      radial-gradient(1px 1px at 71% 9%, rgb(238 238 238 / 0.35), transparent),
-      radial-gradient(1px 1px at 34% 62%, rgb(8 203 0 / 0.35), transparent),
-      radial-gradient(1px 1px at 88% 44%, rgb(238 238 238 / 0.3), transparent),
-      radial-gradient(1.5px 1.5px at 51% 31%, rgb(238 238 238 / 0.25), transparent),
-      radial-gradient(1px 1px at 22% 84%, rgb(238 238 238 / 0.3), transparent),
-      radial-gradient(1px 1px at 63% 77%, rgb(8 203 0 / 0.25), transparent),
-      radial-gradient(1px 1px at 93% 88%, rgb(238 238 238 / 0.25), transparent);
-    background-repeat: repeat;
-    background-size: 420px 420px;
-  }
-
   /* Líneas finas tipo grid HUD. */
   .hud-grid {
     background-image:
       linear-gradient(to right, rgb(238 238 238 / 0.05) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(238 238 238 / 0.05) 1px, transparent 1px);
     background-size: 64px 64px;
+  }
+
+  /* Parpadeo de las estrellas generadas en HeroSkyScene.tsx — cada una con su propio delay/duración. */
+  @keyframes star-twinkle {
+    0%,
+    100% {
+      opacity: var(--star-opacity-min, 0.3);
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  .star-twinkle {
+    animation-name: star-twinkle;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
   }
 
   /*
@@ -193,5 +194,65 @@
   .hero-mark-object {
     transform-style: preserve-3d;
     will-change: transform;
+  }
+
+  /* CTA primario "respira" con un glow sutil — señal viva, no ruido decorativo. */
+  @keyframes accent-breathe {
+    0%,
+    100% {
+      box-shadow: 0 0 6px var(--color-accent-glow);
+    }
+    50% {
+      box-shadow: 0 0 16px var(--color-accent-glow);
+    }
+  }
+  .cta-breathe {
+    animation: accent-breathe 2.6s ease-in-out infinite;
+  }
+  .cta-breathe:hover,
+  .cta-breathe:focus-visible {
+    animation-play-state: paused;
+  }
+
+  /* Ping tipo radar junto al wordmark — un anillo que se expande y se apaga, en loop. */
+  @keyframes radar-pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    100% {
+      transform: scale(2.8);
+      opacity: 0;
+    }
+  }
+  .radar-ping {
+    position: relative;
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: var(--color-accent);
+  }
+  .radar-ping::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background-color: var(--color-accent);
+    animation: radar-pulse 2.4s ease-out infinite;
+  }
+
+  /* Glow que respira sobre texto inline — mismo pulso que .cta-breathe, vía text-shadow. */
+  @keyframes text-pulse {
+    0%,
+    100% {
+      text-shadow: 0 0 4px var(--color-accent-glow);
+    }
+    50% {
+      text-shadow: 0 0 14px var(--color-accent-glow);
+    }
+  }
+  .text-pulse {
+    animation: text-pulse 2.4s ease-in-out infinite;
   }
 }

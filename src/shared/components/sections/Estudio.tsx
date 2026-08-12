@@ -1,4 +1,5 @@
 import { Reveal, Section } from "@/shared/components/ui/Section"
+import { LIMITS } from "@/shared/constants/limits"
 import { SECTION_IDS } from "@/shared/constants/sections"
 import { SITE } from "@/shared/constants/site"
 
@@ -26,6 +27,7 @@ export function Estudio() {
       id={SECTION_IDS.ESTUDIO}
       index="01"
       kicker="EL ESTUDIO"
+      geometry="hex"
       title={
         <>
           Un productor, no una <span className="text-accent">fábrica de tracks</span>.
@@ -35,7 +37,11 @@ export function Estudio() {
     >
       <div className="grid gap-px overflow-hidden rounded-sm border border-border bg-border sm:grid-cols-3">
         {PILLARS.map((pillar, index) => (
-          <Reveal key={pillar.title} delay={index * 0.08}>
+          <Reveal
+            key={pillar.title}
+            delay={Math.min(index, LIMITS.REVEAL_STAGGER_MAX_INDEX) * LIMITS.REVEAL_STAGGER_STEP_S}
+            scaleOnView
+          >
             <article className="hud-frame h-full bg-background p-7 transition-colors hover:bg-surface-alt">
               <span className="font-mono text-xs tracking-[0.2em] text-accent" aria-hidden="true">
                 {String(index + 1).padStart(2, "0")}

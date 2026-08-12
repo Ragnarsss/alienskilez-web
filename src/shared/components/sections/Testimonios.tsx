@@ -1,4 +1,5 @@
 import { Reveal, Section } from "@/shared/components/ui/Section"
+import { LIMITS } from "@/shared/constants/limits"
 import { SECTION_IDS } from "@/shared/constants/sections"
 import { TESTIMONIALS } from "@/shared/constants/testimonials"
 
@@ -9,12 +10,18 @@ export function Testimonios() {
       index="06"
       kicker="TESTIMONIOS"
       tone="surface-alt"
+      geometry="shards"
       title="Lo que dicen los artistas"
       description="Solo citas reales, con nombre y autorización de quien las dijo."
     >
       <div className="grid gap-px overflow-hidden rounded-sm border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
         {TESTIMONIALS.map((testimonial, index) => (
-          <Reveal key={testimonial.id} delay={index * 0.07} className="h-full">
+          <Reveal
+            key={testimonial.id}
+            delay={Math.min(index, LIMITS.REVEAL_STAGGER_MAX_INDEX) * LIMITS.REVEAL_STAGGER_STEP_S}
+            scaleOnView
+            className="h-full"
+          >
             <figure className="hud-frame flex h-full flex-col bg-background p-7">
               <span
                 className="font-display text-4xl leading-none text-accent/40"

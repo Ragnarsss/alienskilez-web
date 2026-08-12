@@ -14,7 +14,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   // Texto NEGRO sobre el verde neón: 9.55:1 (AAA). Con #EEEEEE encima cae a
   // 1.89:1 y reprueba — ver la tabla de contrastes en index.css.
   primary:
-    "bg-accent text-background hover:shadow-[0_0_24px_var(--color-accent-glow)] " +
+    "bg-accent text-background cta-breathe hover:shadow-[0_0_24px_var(--color-accent-glow)] " +
     "hover:brightness-110",
   secondary:
     "border border-border-accent text-accent hover:bg-accent/10 " +

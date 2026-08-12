@@ -28,8 +28,9 @@ export function Navbar() {
         <nav aria-label="Navegación principal" className="flex h-16 items-center justify-between">
           <a
             href={anchor(SECTION_IDS.MAIN)}
-            className="font-display text-lg font-bold tracking-[0.18em] text-text transition-colors hover:text-accent"
+            className="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-[0.18em] text-accent transition-[filter] hover:brightness-125"
           >
+            <span className="radar-ping" aria-hidden="true" />
             {SITE.NAME}
           </a>
 

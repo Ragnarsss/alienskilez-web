@@ -1,5 +1,6 @@
 import { Reveal, Section } from "@/shared/components/ui/Section"
 import { FAQ_ITEMS } from "@/shared/constants/content"
+import { LIMITS } from "@/shared/constants/limits"
 import { SECTION_IDS } from "@/shared/constants/sections"
 
 export function Faq() {
@@ -8,12 +9,16 @@ export function Faq() {
       id={SECTION_IDS.FAQ}
       index="07"
       kicker="PREGUNTAS"
+      geometry="hex"
       title="Antes de escribir"
       description="Lo que la mayoría pregunta por WhatsApp, respondido acá para que no tengas que preguntarlo."
     >
       <div className="mx-auto max-w-3xl divide-y divide-border border-y border-border">
         {FAQ_ITEMS.map((item, index) => (
-          <Reveal key={item.id} delay={Math.min(index, 4) * 0.05}>
+          <Reveal
+            key={item.id}
+            delay={Math.min(index, LIMITS.REVEAL_STAGGER_MAX_INDEX) * LIMITS.REVEAL_STAGGER_STEP_S}
+          >
             {/* <details> nativo: accesible por teclado y funciona sin JS. */}
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left transition-colors hover:text-accent [&::-webkit-details-marker]:hidden">

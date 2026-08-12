@@ -9,7 +9,7 @@ mano en ningún otro lado — ver ADR-7 en [`architecture.md`](./architecture.md
 
 ## 1. Dirección visual
 
-Oscura, urbana, alienígena. La premisa del copy —*"no es una sala con micrófonos, es una nave"*—
+Oscura, urbana, alienígena. La premisa del copy —_"no es una sala con micrófonos, es una nave"_—
 tiene que sostenerse visualmente sin caer en decoración gratuita: negro como vacío del espacio,
 un solo verde neón como señal, y detalles gráficos que sugieren instrumental técnico (líneas HUD,
 brackets de esquina, kickers tipo log de sistema) en vez de ilustraciones sci-fi literales.
@@ -21,35 +21,35 @@ lo que tiene que destacar es el CTA.
 
 Paleta entregada por el cliente, usada sin reinterpretar.
 
-| Token | Valor | Uso |
-|---|---|---|
-| `--color-background` | `#000000` | Fondo base |
-| `--color-surface` | `#253900` | Verde oliva oscuro (reservado; hoy solo en overlays al 25%) |
-| `--color-surface-alt` | `#0d1400` | Superficie de secciones alternas, cards, footer |
-| `--color-text` | `#EEEEEE` | Texto principal (nunca blanco puro: más suave sobre negro) |
-| `--color-text-muted` | `#A8B39A` | Texto secundario, mezclado hacia el oliva |
-| `--color-accent` | `#08CB00` | CTA, kickers, bordes activos, iconos |
-| `--color-accent-glow` | `rgb(8 203 0 / .35)` | `box-shadow`/`text-shadow` del efecto neón |
-| `--color-border` | `rgb(238 238 238 / .12)` | Bordes y separadores |
-| `--color-border-accent` | `rgb(8 203 0 / .4)` | Bordes en hover/foco |
+| Token                   | Valor                    | Uso                                                         |
+| ----------------------- | ------------------------ | ----------------------------------------------------------- |
+| `--color-background`    | `#000000`                | Fondo base                                                  |
+| `--color-surface`       | `#253900`                | Verde oliva oscuro (reservado; hoy solo en overlays al 25%) |
+| `--color-surface-alt`   | `#0d1400`                | Superficie de secciones alternas, cards, footer             |
+| `--color-text`          | `#EEEEEE`                | Texto principal (nunca blanco puro: más suave sobre negro)  |
+| `--color-text-muted`    | `#A8B39A`                | Texto secundario, mezclado hacia el oliva                   |
+| `--color-accent`        | `#08CB00`                | CTA, kickers, bordes activos, iconos                        |
+| `--color-accent-glow`   | `rgb(8 203 0 / .35)`     | `box-shadow`/`text-shadow` del efecto neón                  |
+| `--color-border`        | `rgb(238 238 238 / .12)` | Bordes y separadores                                        |
+| `--color-border-accent` | `rgb(8 203 0 / .4)`      | Bordes en hover/foco                                        |
 
 ### Contrastes calculados (WCAG 2.1)
 
 Calculados con la fórmula de luminancia relativa, **no estimados a ojo**. Reproducible con el
 script de [`quality-gates.md`](./quality-gates.md) §5.
 
-| Combinación | Ratio | Nivel | Veredicto |
-|---|---|---|---|
-| `#EEEEEE` sobre `#000000` | **18.10** | AAA | Texto de cuerpo ✅ |
-| `#EEEEEE` sobre `#0d1400` | **16.20** | AAA | Texto sobre cards ✅ |
-| `#EEEEEE` sobre `#253900` | **10.88** | AAA | ✅ |
-| `#A8B39A` sobre `#000000` | **9.58** | AAA | Texto secundario ✅ |
-| `#08CB00` sobre `#000000` | **9.55** | AAA | Titulares, kickers, iconos ✅ |
-| `#000000` sobre `#08CB00` | **9.55** | AAA | **Botones de acento** ✅ |
-| `#A8B39A` sobre `#0d1400` | **8.57** | AAA | ✅ |
-| `#08CB00` sobre `#0d1400` | **8.55** | AAA | ✅ |
-| `#08CB00` sobre `#253900` | **5.74** | AA | ⚠️ No usar en texto chico |
-| `#EEEEEE` sobre `#08CB00` | **1.89** | — | ❌ **Reprueba. Prohibido.** |
+| Combinación               | Ratio     | Nivel | Veredicto                     |
+| ------------------------- | --------- | ----- | ----------------------------- |
+| `#EEEEEE` sobre `#000000` | **18.10** | AAA   | Texto de cuerpo ✅            |
+| `#EEEEEE` sobre `#0d1400` | **16.20** | AAA   | Texto sobre cards ✅          |
+| `#EEEEEE` sobre `#253900` | **10.88** | AAA   | ✅                            |
+| `#A8B39A` sobre `#000000` | **9.58**  | AAA   | Texto secundario ✅           |
+| `#08CB00` sobre `#000000` | **9.55**  | AAA   | Titulares, kickers, iconos ✅ |
+| `#000000` sobre `#08CB00` | **9.55**  | AAA   | **Botones de acento** ✅      |
+| `#A8B39A` sobre `#0d1400` | **8.57**  | AAA   | ✅                            |
+| `#08CB00` sobre `#0d1400` | **8.55**  | AAA   | ✅                            |
+| `#08CB00` sobre `#253900` | **5.74**  | AA    | ⚠️ No usar en texto chico     |
+| `#EEEEEE` sobre `#08CB00` | **1.89**  | —     | ❌ **Reprueba. Prohibido.**   |
 
 ### Las dos reglas que salen de esa tabla
 
@@ -62,11 +62,11 @@ script de [`quality-gates.md`](./quality-gates.md) §5.
 
 ## 3. Tipografía
 
-| Rol | Fuente | Por qué |
-|---|---|---|
-| Titulares | **Space Grotesk** (500/600/700) | Geométrica con carácter técnico; el nombre calza con la identidad y la forma también |
-| Cuerpo | **Inter** (400/500/600) | Neutra y muy legible en tamaños chicos sobre fondo oscuro |
-| Kickers y datos | `ui-monospace` → `JetBrains Mono` → `Consolas` | Estética de "log de sistema" sin pagar el peso de otra webfont |
+| Rol             | Fuente                                         | Por qué                                                                              |
+| --------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Titulares       | **Space Grotesk** (500/600/700)                | Geométrica con carácter técnico; el nombre calza con la identidad y la forma también |
+| Cuerpo          | **Inter** (400/500/600)                        | Neutra y muy legible en tamaños chicos sobre fondo oscuro                            |
+| Kickers y datos | `ui-monospace` → `JetBrains Mono` → `Consolas` | Estética de "log de sistema" sin pagar el peso de otra webfont                       |
 
 Ambas webfonts se cargan explícitamente desde Google Fonts en `index.html`, con `preconnect` y
 `display=swap`. La monoespaciada usa la pila del sistema a propósito: el mood se consigue con
@@ -91,34 +91,79 @@ punto servicios" no comunica nada.
 Cuatro recursos, todos en CSS puro (sin canvas, sin JS, sin imágenes), definidos en
 `@layer components` de `index.css`:
 
-| Clase | Qué es | Nota |
-|---|---|---|
-| `.starfield` | Campo de estrellas con `radial-gradient` repetido | 8 puntos en un tile de 420px; peso cero |
-| `.hud-grid` | Retícula fina de 64px | Dos `linear-gradient` al 5% de opacidad |
-| `.hud-frame` | Brackets `⌐ ¬` en esquinas opuestas | Aparecen en `:hover` y en `:focus-within` — importante: la card responde también a teclado, no solo a mouse |
-| Glow de acento | `box-shadow` con `--color-accent-glow` | Solo en CTA y bordes activos |
+| Clase                           | Qué es                                                                  | Nota                                                                                                        |
+| ------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `.starfield` / `.starfield-mid` | Dos campos de estrellas con `radial-gradient` repetido, tiles distintos | Capas de profundidad del cielo del Hero (paralaje en `HeroSkyScene.tsx`); peso cero                         |
+| `.hud-grid`                     | Retícula fina de 64px                                                   | Dos `linear-gradient` al 5% de opacidad                                                                     |
+| `.hud-frame`                    | Brackets `⌐ ¬` en esquinas opuestas                                     | Aparecen en `:hover` y en `:focus-within` — importante: la card responde también a teclado, no solo a mouse |
+| Glow de acento                  | `box-shadow` con `--color-accent-glow`                                  | En CTA (con `.cta-breathe`, ver §6) y bordes activos                                                        |
 
 Todos son decorativos y van con `aria-hidden="true"` cuando son elementos propios.
 
 **Regla:** un motivo nuevo tiene que costar cerca de cero en runtime. Si necesita JavaScript o una
 imagen, hay que justificar por qué no alcanza con CSS.
 
+### 5.1 "Signal Geometry" — figuras planas de fondo por sección
+
+`shared/components/ui/GeometricAccent.tsx` define tres variantes (`shards`, `chevrons`, `hex`):
+polígonos SVG planos (sin 3D), trazados solo con `stroke`, usando exclusivamente
+`--color-border`/`--color-border-accent` — cero colores nuevos. `Section` las recibe con la prop
+`geometry` y las posiciona alternadas (esquina superior derecha / inferior izquierda) según la
+sección sea de índice par o impar.
+
+Nacen de una referencia externa (geometría angular marcada, cortes diagonales) tomada **solo como
+inspiración de estilo** — la paleta y el layout de esa referencia no se copian; las formas son
+originales y usan únicamente los tokens ya definidos en este documento.
+
+### 5.2 Hero: cielo nocturno y nave
+
+`HeroSkyScene.tsx` (grid + dos capas de estrellas + un planeta) y `HeroShip.tsx` (silueta de nave
+que cruza el Hero de punta a punta) son capas de fondo detrás del isotipo interactivo
+(`HeroMark3D.tsx`, que no cambia). Todo plano — el 3D real queda reservado exclusivamente al
+isotipo, que sigue siendo la única pieza `transform-style: preserve-3d` del sitio (ADR-12). El
+paralaje de ambos componentes está ligado al progreso de scroll del propio Hero (`useScroll` con
+`target` acotado a la sección), no al scroll de toda la página.
+
 ## 6. Movimiento
 
-- Scroll-reveal con Framer Motion: `opacity 0→1`, `y 24→0`, 0.5s `easeOut`, `once: true`.
-- Escalonado por índice (`delay: index * 0.05–0.08`), **acotado** — en la grilla de 10 servicios
-  el delay se limita con `Math.min(index, 5)` para que la última card no tarde medio segundo de
-  más en aparecer.
+- Scroll suave global vía **Lenis** (`shared/hooks/useLenis.ts`), calibrado a un perfil
+  "cinematográfico medio": `duration` y `easing` en vez del `lerp` por defecto — arranque rápido,
+  frenada suave. Constantes en `LIMITS.LENIS_DURATION`.
+- Scroll-reveal con Framer Motion: `opacity 0→1`, `y 24→0`, 0.5s `easeOut`, `once: true`
+  (`LIMITS.REVEAL_DURATION_S`). La variante `scaleOnView` de `Reveal` suma `scale 0.97→1` — pensada
+  para cards de grilla, no para listas de texto (por eso Faq no la usa).
+- Escalonado por índice, unificado en `LIMITS.REVEAL_STAGGER_STEP_S` /
+  `LIMITS.REVEAL_STAGGER_MAX_INDEX` — antes cada sección tenía su propio paso de delay (0.05 a
+  0.08) sin razón para diferir; ahora es un solo valor.
+- Márgenes de viewport unificados: `LIMITS.REVEAL_VIEWPORT_MARGIN_HEADER` (headers de sección,
+  dispara más temprano) y `LIMITS.REVEAL_VIEWPORT_MARGIN_CARD` (cards individuales).
 - Hover: transiciones de 200ms sobre `background-color`, `box-shadow`, `border-color`, `color`.
   Nunca sobre `all`.
+- CTA primario: `.cta-breathe` — glow que respira en un ciclo de 2.6s, se pausa en `:hover`/
+  `:focus-visible` para que la transición de hover normal tome el control sin pelear por la misma
+  propiedad.
+- Storytelling con SVG: en Portfolio, la traza de la timeline avanza con `scaleY` ligado al
+  progreso de scroll de la lista (`useScroll`); en Proceso, una barra de progreso se dibuja
+  (`scaleX 0→1`) al entrar en viewport. Ninguno depende de medir posiciones de cards en un grid
+  responsive — ese enfoque es fácil de romper entre breakpoints.
+- Conversión: `Alcance.tsx` cuenta 0→valor con `useMotionValue`/`animate()` solo cuando la métrica
+  ya dejó de ser el placeholder `[XX]` (ADR-6) — con datos pendientes, el comportamiento visual es
+  idéntico al de antes de esta fase.
 
-### `prefers-reduced-motion` — doble red
+### `prefers-reduced-motion` — triple red
 
-1. `<MotionConfig reducedMotion="user">` en `App.tsx` desactiva las animaciones de Framer Motion.
+1. `<MotionConfig reducedMotion="user">` en `App.tsx` desactiva las animaciones declarativas de
+   Framer Motion (`initial`/`animate`/`whileInView`) — cubre `Reveal`, el header de `Section` y la
+   barra de progreso de Proceso automáticamente, sin código adicional.
 2. Un bloque `@media (prefers-reduced-motion: reduce)` en `index.css` anula además animaciones y
-   transiciones CSS, y apaga el `scroll-behavior: smooth`.
+   transiciones CSS, apaga `scroll-behavior: smooth` y neutraliza `.cta-breathe`.
+3. **Animaciones imperativas** (`useTransform`/`useScroll`/`animate()` fuera de las props
+   declarativas de Framer) no las cubre `MotionConfig` — cada una chequea `useReducedMotion()` a
+   mano: el paralaje y la nave del Hero quedan en una posición de reposo, la traza de Portfolio
+   queda completamente llena, y el contador de Alcance salta directo al valor final sin animar.
 
-Hacen falta las dos: la primera no cubre el glow ni el smooth scroll, que son CSS puro.
+Hacen falta las tres — la primera no cubre el glow ni el smooth scroll (CSS puro), y ninguna de
+las dos primeras cubre el motion imperativo del punto 3.
 
 ## 7. Cómo extender el sistema
 

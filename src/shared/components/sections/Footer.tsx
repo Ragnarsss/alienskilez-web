@@ -22,7 +22,10 @@ export function Footer() {
       <Container>
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
-            <p className="font-display text-lg font-bold tracking-[0.18em]">{SITE.NAME}</p>
+            <p className="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-[0.18em] text-accent">
+              <span className="radar-ping" aria-hidden="true" />
+              {SITE.NAME}
+            </p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-text-muted">
               {SITE.TAGLINE} en {SITE.LOCATION}. Producción, grabación, mezcla, máster y todo lo que
               viene después.
