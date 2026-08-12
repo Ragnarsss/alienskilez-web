@@ -266,7 +266,51 @@ La tabla completa está en [`design-system.md`](./design-system.md) §2.
 resultaron 9.55:1 y 5.74:1. El acento sobre `--color-surface` es **AA, no AAA** — por eso la
 regla de no usarlo en texto chico es más estricta de lo que parecía.
 
-## 7. Deuda conocida y diferida a propósito
+## 7. Decisiones de arquitectura abiertas
+
+A diferencia de la sección anterior, estas **no están cerradas**. Se documentan igual porque ya
+tienen consecuencias reales sobre el diseño (aparecen como requisito propuesto en
+`rf-rnf-catalogo.md` y como ticket en `backlog.md`), pero falta que alguien con autoridad sobre el
+negocio elija entre las opciones.
+
+### ADR-11 (abierta) — Cómo conectar el portfolio con Spotify y YouTube
+
+**Contexto:** RF-POR-002 pide que el portfolio refleje el catálogo real de ALIENSKILEZ en Spotify
+(y, en menor medida, YouTube) sin depender de que alguien lo copie a mano en `portfolio.ts` cada
+vez que sale un tema. El problema es que esto **choca de frente con ADR-1** — "sin backend, sin
+secretos" — porque la Web API de Spotify que da metadata rica (álbumes, tracks, fechas) usa Client
+Credentials, y un `client_secret` no puede vivir en el bundle de un sitio estático sin quedar
+visible en las devtools de cualquiera.
+
+**Opciones evaluadas, sin descartar ninguna todavía:**
+
+| Opción | Secretos expuestos | Control de la UI | Se desincroniza del catálogo | Costo de infraestructura |
+|---|---|---|---|---|
+| **1. Embed oficial** (`open.spotify.com/embed/artist/{id}`) | Ninguno | Bajo — la UI la define Spotify | No — siempre en vivo | Cero, sigue siendo 100% estático |
+| **2. Función serverless** (Vercel/Netlify Function que llama la Web API y cachea la respuesta) | Ninguno expuesto al cliente (el secret vive en el entorno de la función) | Total — UI propia con el sistema de diseño del sitio | No | Introduce el primer "backend", aunque sea mínimo — rompe ADR-1 tal como está escrito hoy |
+| **3. Carga manual** (lo que ya existe en `portfolio.ts`) | Ninguno | Total | **Sí** — es exactamente el problema que RF-POR-002 quiere resolver | Cero |
+
+YouTube tiene una variante propia: su Data API v3 sí admite una API key de solo lectura
+restringida por dominio (no requiere OAuth para datos públicos), lo que la hace viable sin
+backend — pero sigue siendo la primera credencial del proyecto, y una API key mal restringida es
+una forma más silenciosa de exponer algo que un `client_secret` obviamente sensible.
+
+**Lo que falta para cerrar esto:** una decisión del Productor sobre si vale la pena introducir la
+primera pieza de infraestructura del proyecto (opción 2) a cambio de una UI propia, o si el embed
+oficial (opción 1) alcanza — y el `Spotify Artist ID` real de ALIENSKILEZ, que ninguna de las tres
+opciones puede evitar necesitar.
+**Seguimiento:** ALS-026 (Spotify) y ALS-027 (YouTube) en `backlog.md`.
+
+### Pendiente de definición — Hero con marca 3D interactiva
+
+RF nuevo (sin ID formal todavía) pide una pieza 3D de la marca que rote al hacer click y arrastrar,
+más un efecto de "aura" que sigue al cursor en el fondo del Hero. La segunda parte no tiene
+decisión pendiente — es CSS puro, mismo criterio que el resto de los motivos gráficos (§5 de
+`design-system.md`). La primera sí: no existe todavía un asset 3D ni un isotipo definitivo (ver
+"Sin imágenes propias" en §8), así que el ticket está bloqueado por diseño, no por arquitectura.
+**Seguimiento:** ALS-028 (hero 3D) y ALS-029 (aura de mouse) en `backlog.md`.
+
+## 8. Deuda conocida y diferida a propósito
 
 Documentado como decisión, no como olvido:
 
@@ -280,7 +324,7 @@ Documentado como decisión, no como olvido:
 - **Sin imágenes propias.** No hay fotos del estudio ni isotipo definitivo; el favicon actual es
   interino. Bloqueado por falta de las piezas gráficas, no por código.
 
-## 8. Documentos relacionados
+## 9. Documentos relacionados
 
 - [`engineering-guidelines.md`](./engineering-guidelines.md) — cómo se escribe código acá.
 - [`design-system.md`](./design-system.md) — tokens, contrastes verificados, tipografía.

@@ -1,8 +1,9 @@
 # Documentación — ALIENSKILEZ web
 
-Fecha: 2026-08-12
+Fecha: 2026-08-12 (última actualización: WhatsApp real, ALS-001)
 Estado: sitio implementado y verificado (`lint`, `test` 24/24, `build` limpios).
-**No desplegado** — bloqueado por [ALS-001](./backlog.md) (número de WhatsApp).
+**No desplegado todavía** — quedan ALS-019 (Lighthouse/a11y) y ALS-020 (responsive) antes de
+ALS-022. El bloqueante original (número de WhatsApp, ALS-001) ya está resuelto.
 
 ## Qué es este proyecto
 
@@ -91,5 +92,7 @@ Ver ADR-6 en [`architecture.md`](./architecture.md) y §10 de
 | Lighthouse | ⏳ Sin correr (ALS-019) |
 | Lector de pantalla | ⏳ Sin recorrer (ALS-019) |
 | Datos reales de negocio | ⏳ Portfolio, cifras y testimonios pendientes (ALS-003 a ALS-005) |
-| Número de WhatsApp | 🔴 **Placeholder — bloquea el lanzamiento (ALS-001)** |
+| Número de WhatsApp | ✅ Real, personal — falta migrar a Business (ALS-030) |
+| Integración con Spotify/YouTube | ⏳ Decisión de arquitectura abierta (ALS-026, ALS-027) |
+| Hero 3D + aura de mouse | ⏳ Pendiente, sin bloquear el lanzamiento (ALS-028, ALS-029) |
 | Despliegue | ⏳ Pendiente (ALS-022) |

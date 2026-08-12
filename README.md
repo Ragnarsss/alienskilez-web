@@ -31,8 +31,8 @@ hasta reemplazarlos:
 
 | Qué | Dónde | Estado |
 |---|---|---|
-| Número de WhatsApp | `src/shared/constants/whatsapp.ts` | **Bloqueante** — con el valor actual (`000000000000`) toda conversión se pierde. En dev el formulario muestra un aviso. |
-| URL de Spotify | `src/shared/constants/site.ts` | El enlace no se renderiza mientras `pending: true`. Requiere la URL real del perfil de artista (usa un ID opaco, no se puede derivar del nombre). |
+| Número de WhatsApp | `src/shared/constants/whatsapp.ts` | ✅ Resuelto (ALS-001) — número real, personal. Migrar a Business queda como ALS-030. |
+| URL de Spotify | `src/shared/constants/site.ts` | El enlace no se renderiza mientras `pending: true`. Requiere la URL real del perfil de artista (usa un ID opaco, no se puede derivar del nombre). Ver también ALS-026 — la integración de portfolio con Spotify puede reemplazar este enlace suelto por algo más rico. |
 | URL de YouTube | `src/shared/constants/site.ts` | Construida como `youtube.com/@alienskilez`. Verificar que resuelva. |
 | Trabajos del portfolio | `src/shared/constants/portfolio.ts` | 5 entradas placeholder, una por línea de servicio, con espacio para embeds de Spotify/YouTube. |
 | Cifras de trayectoria | `src/shared/constants/alcance.ts` | 4 métricas en `[XX]`. Cada una documenta **cómo se calcula** en el campo `measurement`. |

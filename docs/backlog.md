@@ -30,21 +30,26 @@ que entregar. Están numerados primero porque **el sitio no puede desplegarse si
 ### ALS-001 — Número de WhatsApp real
 
 - Prioridad: **P0** · Esfuerzo: S
-- Estado: **PENDIENTE — BLOQUEANTE DE LANZAMIENTO**
+- **Estado: Hecho** (2026-08-12)
 
-`WHATSAPP.NUMBER` en `src/shared/constants/whatsapp.ts` es el placeholder `"000000000000"`. Con ese
-valor, cada visitante que completa el formulario abre un chat inexistente y **la conversión se
-pierde en silencio** — el sitio deja de cumplir su única función sin dar ninguna señal de error.
-
-Mitigación provisional ya implementada: `IS_WHATSAPP_PLACEHOLDER` dispara un aviso visible en el
-formulario, pero **solo en desarrollo** (`import.meta.env.DEV`), para no mostrárselo a un visitante.
-
-Formato requerido: internacional, sin `+`, sin espacios ni guiones. Ejemplo: `56912345678`.
+`WHATSAPP.NUMBER` en `src/shared/constants/whatsapp.ts` pasó de `"000000000000"` a
+`"56938765513"` — WhatsApp **personal**, no Business todavía (ver ALS-030).
 
 **Criterios de aceptación:**
-1. `WHATSAPP.NUMBER` contiene el número real y `IS_WHATSAPP_PLACEHOLDER` evalúa `false`.
-2. Completar el formulario abre un chat real de WhatsApp Business con el mensaje precargado.
-3. Verificado desde un dispositivo móvil, no solo desde escritorio.
+1. ✅ `WHATSAPP.NUMBER` contiene el número real y `IS_WHATSAPP_PLACEHOLDER` evalúa `false`.
+2. ✅ La URL `wa.me` se construye correctamente con el mensaje codificado (verificado con el
+   builder real, ver `useBookingForm.ts`).
+3. ⏳ Verificación desde un dispositivo móvil real — pendiente, hacerla antes de ALS-022.
+
+### ALS-030 — Migrar a WhatsApp Business
+
+- Prioridad: P2 · Esfuerzo: S · Estado: Pendiente
+
+`WHATSAPP.NUMBER` hoy es un WhatsApp personal. Cuando exista la cuenta de WhatsApp Business, el
+cambio es de una sola línea en `whatsapp.ts` — no toca ningún componente (mismo patrón que
+ALS-002). Business suma catálogo, respuestas rápidas y estadísticas que el personal no tiene.
+
+**Criterios:** el número de la constante corresponde a una cuenta Business verificada.
 
 ### ALS-002 — URL del perfil de Spotify
 
@@ -231,6 +236,86 @@ Assets del template de Vite eliminados; `icons.svg` reemplazado por íconos de r
 
 ---
 
+## Épica G — Portfolio conectado y hero enriquecido
+
+Alcance nuevo, sumado el 2026-08-12 a partir de referencias del propio Productor: el sitio de
+[Aka Kimosabi](https://kimosabi-portfolio-hqfutm.vercel.app/) para la sección de música
+conectada a streaming, y el hero de [flownewyork.cl](https://flownewyork.cl) para el efecto de
+"aura" que sigue al mouse. Cada ticket de acá tiene decisiones de arquitectura abiertas — ver
+`architecture.md` §7 antes de implementar.
+
+### ALS-026 — Integración directa con Spotify del artista
+
+- Prioridad: **P1** · Esfuerzo: M · Estado: Pendiente — **decisión de arquitectura abierta**
+
+El portfolio debe mostrar el catálogo real de ALIENSKILEZ en Spotify (lanzamientos, tal vez la
+discografía completa), no un registro manual copiado a `constants/portfolio.ts`.
+
+**El problema de fondo:** este proyecto tiene como decisión explícita "sin backend, sin secretos"
+(ADR-1). La Web API de Spotify que permite listar álbumes/tracks con metadata rica requiere
+Client Credentials — un `client_secret` que **no puede vivir en el bundle** de un sitio estático
+sin exponerse a cualquiera que abra las devtools. Hay tres caminos, cada uno con un costo
+distinto, evaluados en `architecture.md` §7 (ADR-11):
+
+1. **Embed oficial de Spotify** (`open.spotify.com/embed/artist/{id}`) — cero secretos, cero
+   mantenimiento, pero la UI la controla Spotify, no el sistema de diseño del sitio.
+2. **Web API vía función serverless** (Vercel Function) — UI propia, pero introduce el primer
+   "backend" del proyecto, aunque sea mínimo.
+3. **Copiar manualmente a `portfolio.ts`** (lo que ya existe) — cero infraestructura nueva, pero
+   se desincroniza del catálogo real apenas sale un lanzamiento nuevo.
+
+**Bloqueado por:** decisión del Productor sobre cuál de los tres caminos tomar (ver pregunta
+abierta en la respuesta de esta sesión) + el `Spotify Artist ID` real de ALIENSKILEZ.
+
+### ALS-027 — Integración con YouTube
+
+- Prioridad: P2 · Esfuerzo: M · Estado: Pendiente — depende de la misma decisión que ALS-026
+
+Mismo dilema que Spotify: la YouTube Data API v3 sí admite una API key restringida por dominio
+(no requiere OAuth para datos públicos), lo que la hace viable sin backend — pero sigue siendo una
+credencial nueva en un proyecto que hoy no tiene ninguna. Alternativa sin credenciales: embed de
+un video o playlist puntual (`youtube.com/embed/videoseries?list=...`), sin listado dinámico de
+"últimos uploads".
+
+**Bloqueado por:** misma decisión de ALS-026, aplicada a YouTube.
+
+### ALS-028 — Hero: marca 3D interactiva (rotación por arrastre)
+
+- Prioridad: P2 · Esfuerzo: L · Estado: Pendiente — falta el asset
+
+El Hero debe llevar una pieza 3D de la marca (a definir si es el isotipo tipo "alien" mencionado
+por el Productor) que rote al hacer click y arrastrar.
+
+**Sin Three.js/WebGL** — no se justifica esa dependencia para un objeto que rota por arrastre; se
+puede lograr con `transform-style: preserve-3d` + `perspective` de CSS, mapeando el delta de
+`pointermove` durante el arrastre a `rotateX`/`rotateY`, con inercia al soltar (`requestAnimationFrame`
++ decaimiento). Es la misma familia de truco que un "card flip" 3D, escalado a arrastre libre en
+dos ejes.
+
+**Bloqueado por:** no existe todavía un asset 3D ni un isotipo definitivo (ver ALS-006). Se puede
+prototipar con una forma geométrica simple (ej. el favicon actual extrudido en capas) mientras
+tanto, si el Productor prefiere no esperar al isotipo final.
+
+### ALS-029 — Hero: aura que sigue al mouse
+
+- Prioridad: P2 · Esfuerzo: S · Estado: Pendiente
+
+Efecto de glow radial centrado en la posición del cursor, sobre el fondo del Hero. Implementable
+sin dependencias: `pointermove` actualiza dos custom properties CSS (`--mouse-x`/`--mouse-y`)
+sobre el contenedor, y un `radial-gradient(circle at var(--mouse-x) var(--mouse-y), ...)` sigue el
+cursor. Mismo criterio que el resto de los motivos gráficos del sitio (`design-system.md` §5):
+CSS puro, sin canvas ni WebGL, costo de runtime cercano a cero.
+
+**Regla no negociable:** el efecto se desactiva completo bajo `prefers-reduced-motion` (mismo
+mecanismo que ya cubre el resto del movimiento del sitio, `design-system.md` §6) y no debe
+activarse en touch — no hay cursor que seguir.
+
+**Criterios:** el aura sigue al cursor con la latencia de un frame; en touch no aparece ningún
+rastro fantasma del último punto tocado; con `prefers-reduced-motion: reduce` el fondo queda
+estático.
+
+---
+
 ## Épica E — Alcance y verificación
 
 ### ALS-016 — Imagen de compartido social (`og:image`)
@@ -309,8 +394,8 @@ tendría dónde aplicarse.
 Vercel o Netlify conectado al repositorio; build `npm run build`, salida `dist/`. Sitio 100%
 estático, sin variables de entorno.
 
-**No desplegar antes de cerrar ALS-001** — publicar con el número placeholder es peor que no
-publicar: el sitio aparenta funcionar y pierde cada lead sin avisar.
+ALS-001 (bloqueante original) ya está cerrado. Lo que queda antes de este ticket es ALS-019
+(Lighthouse + a11y) y ALS-020 (barrido responsive) — ver el checklist final.
 
 **Criterios:** dominio resolviendo; checklist final de [`quality-gates.md`](./quality-gates.md) §7
 completo.
@@ -341,7 +426,7 @@ vista. Ver ADR-5.
 
 | ID | Épica | Prio | Esfuerzo | Estado | Bloqueado por |
 |---|---|---|---|---|---|
-| ALS-001 | A | **P0** | S | **PENDIENTE — bloquea lanzamiento** | Productor |
+| ALS-001 | A | P0 | S | ✅ Hecho | — |
 | ALS-002 | A | P2 | S | Pendiente | Productor |
 | ALS-003 | A | P1 | M | Pendiente | Productor |
 | ALS-004 | A | P1 | S | Pendiente | Productor |
@@ -362,13 +447,19 @@ vista. Ver ADR-5.
 | ALS-019 | E | P1 | S | Pendiente | — |
 | ALS-020 | E | P1 | S | Pendiente | — |
 | ALS-021 | F | P1 | L | ✅ Hecho | — |
-| ALS-022 | F | **P0** | S | Pendiente | **ALS-001** |
+| ALS-022 | F | P0 | S | Pendiente | ALS-019, ALS-020 |
 | ALS-023 | — | — | — | Diferido | — |
 | ALS-024 | — | — | — | Diferido | ALS-019 |
 | ALS-025 | — | — | — | Diferido | — |
+| ALS-026 | G | **P1** | M | Pendiente | **Decisión de arquitectura + Spotify Artist ID** |
+| ALS-027 | G | P2 | M | Pendiente | Misma decisión que ALS-026 |
+| ALS-028 | G | P2 | L | Pendiente | Asset 3D / isotipo (ALS-006) |
+| ALS-029 | G | P2 | S | Pendiente | — |
+| ALS-030 | A | P2 | S | Pendiente | Productor (cuenta Business) |
 
-**Camino crítico al lanzamiento:** ALS-001 → ALS-019 → ALS-020 → ALS-022.
-Todo lo demás mejora el sitio, pero no impide publicarlo.
+**Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
+ALS-026 a ALS-029 son alcance nuevo que **mejora** el sitio pero no impide publicarlo — el sitio
+puede lanzarse con el portfolio manual actual y sumar la integración con Spotify después.
 
 ## 5. Gobernanza
 

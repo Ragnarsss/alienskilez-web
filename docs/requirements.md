@@ -39,6 +39,14 @@ mismo formulario.
 Los trabajos destacados se presentan como una línea de tiempo que cuenta una evolución, no como
 una grilla plana de logos. Cuando exista la pista, se embebe el reproductor.
 
+### RF-05b — Integración directa con Spotify del artista (nuevo, sumado 2026-08-12)
+El portfolio debe conectar con el catálogo real de ALIENSKILEZ en Spotify — lanzamientos y
+discografía traídos de la fuente real, no copiados a mano cada vez que sale un tema nuevo. Es
+requisito **propuesto**, todavía sin decidir *cómo* se implementa: ver ADR-11 en
+[`architecture.md`](./architecture.md) y el ticket ALS-026 en [`backlog.md`](./backlog.md) — la
+opción elegida (embed oficial vs. función serverless vs. carga manual) cambia si este proyecto
+sigue siendo 100% estático o gana su primera pieza de infraestructura.
+
 ### RF-06 — Trayectoria y testimonios verificables
 El sitio puede mostrar cifras de trayectoria y citas de artistas — **solo si son reales**. Mientras
 no existan, las secciones se publican con marcadores explícitos de dato pendiente, nunca con

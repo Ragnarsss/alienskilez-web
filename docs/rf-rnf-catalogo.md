@@ -28,6 +28,7 @@ Módulos: **NAV** navegación · **EST** el estudio · **SRV** servicios · **PO
 | RF-SRV-002 | SRV | Cada servicio debe ofrecer el CTA que corresponde a su naturaleza: agendar sesión o cotizar proyecto. | Alta | El CTA de cada card se deriva de `tier`; los 6 de tipo sesión muestran "Agenda tu sesión" y los 4 de proyecto "Cotiza tu proyecto" (CP-SRV-002). | HU-SRV-001 | CU-SRV-001 | Verificado |
 | RF-SRV-003 | SRV | El sitio **no** debe publicar tarifas. | Alta | No existe ningún precio en el sitio; el copy explica que el valor depende del alcance (CP-SRV-003). | HU-SRV-001 | CU-SRV-001 | Verificado |
 | RF-POR-001 | POR | El sitio debe mostrar trabajos destacados en formato de progresión temporal, con reproductor embebido cuando exista la pista. | Media | La línea de tiempo renderiza las entradas de `PORTFOLIO_ITEMS`; con `embedUrl` presente monta el iframe, y sin ella un marcador — nunca un iframe vacío (CP-POR-001). | HU-POR-001 | CU-POR-001 | Verificado |
+| RF-POR-002 | POR | El portfolio debe conectar con el catálogo real de ALIENSKILEZ en Spotify (lanzamientos, discografía), no depender de que alguien lo copie a mano en cada release. | **Alta** | El sitio muestra los lanzamientos vigentes en Spotify sin editar código ni constantes al salir un tema nuevo (CP-POR-002). | HU-POR-001 | CU-POR-001 (extiende) | **Propuesto** — decisión de arquitectura abierta, ver ADR-11 de `architecture.md` y ALS-026 de `backlog.md`. Cuando se cierre la decisión, corresponde una ficha `CU-POR-002` propia en `casos-uso.md`. |
 | RF-TRA-001 | TRA | El sitio debe poder mostrar cifras de trayectoria y testimonios de artistas. | Media | Las secciones Alcance y Testimonios existen y consumen sus constantes (CP-TRA-001). | HU-TRA-001 | CU-TRA-001 | Verificado |
 | RF-TRA-002 | TRA | Mientras no existan datos reales, las cifras y testimonios deben mostrarse como pendientes explícitos, nunca como valores inventados. | **Alta** | Toda entrada con `pending: true` se renderiza con marcador visible y atenuada; ninguna cifra o cita ficticia en el sitio (CP-TRA-002). | HU-TRA-001 | CU-TRA-001 | Verificado |
 | RF-PRO-001 | PRO | El sitio debe explicar el proceso de agendamiento paso a paso. | Media | Se muestran los 4 pasos de `PROCESS_STEPS` en orden (CP-PRO-001). | HU-PRO-001 | CU-PRO-001 | Verificado |
@@ -35,7 +36,7 @@ Módulos: **NAV** navegación · **EST** el estudio · **SRV** servicios · **PO
 | RF-BKG-001 | BKG | El sitio debe ofrecer un formulario que capture nombre, tipo de servicio, fecha estimada opcional y detalle opcional. | **Alta** | Los 4 campos existen con `<label>` asociado; nombre y servicio son obligatorios (CP-BKG-001). | HU-BKG-001 | CU-BKG-001 | Verificado |
 | RF-BKG-002 | BKG | El formulario debe validar en cliente antes de permitir el envío, con mensajes accesibles por campo. | **Alta** | 24 tests cubren nombre corto/vacío/largo, servicio no seleccionado o inválido, fecha pasada y mensaje excedido; los errores se muestran con `role="alert"` y `aria-invalid` (CP-BKG-002). | HU-BKG-001 | CU-BKG-001 | Verificado |
 | RF-BKG-003 | BKG | Al enviar, el sistema debe abrir WhatsApp con un mensaje precargado que identifique al solicitante y el servicio pedido. | **Alta** | `buildWhatsAppMessage()` produce el mensaje esperado en las 9 combinaciones testeadas de campos opcionales, y usa el verbo correspondiente al `tier` (CP-BKG-003). | HU-BKG-001 | CU-BKG-002 | Verificado |
-| RF-BKG-004 | BKG | El mensaje no debe enviarse automáticamente: el visitante debe poder revisarlo antes. | Alta | `window.open` deja el chat con el texto cargado sin enviar; el copy bajo el botón lo anticipa (CP-BKG-004). | HU-BKG-001 | CU-BKG-002 | **Implementado** — no verificado contra un número real (ver §5). |
+| RF-BKG-004 | BKG | El mensaje no debe enviarse automáticamente: el visitante debe poder revisarlo antes. | Alta | `window.open` deja el chat con el texto cargado sin enviar; el copy bajo el botón lo anticipa (CP-BKG-004). | HU-BKG-001 | CU-BKG-002 | **Implementado** — verificado con el número real en escritorio; falta repetirlo en móvil (ver §5). |
 | RF-BKG-005 | BKG | Todo CTA del sitio debe conducir al mismo formulario. | Alta | Los CTA de navbar, hero, cards de servicio y cierre apuntan a `#contacto` (CP-BKG-005). | HU-BKG-001 | CU-BKG-001 | Verificado |
 | RF-SEO-001 | SEO | El sitio debe declarar título, descripción, idioma y metadatos de compartido social, incluyendo la ciudad de operación. | Media | `index.html` incluye `lang="es"`, `<title>`, `description` y Open Graph con "La Serena" (CP-SEO-001). | HU-SEO-001 | — | **Implementado** — falta `og:image` (ALS-016). |
 
@@ -111,13 +112,37 @@ definidos por la tabla de §2.
   el Productor.
 - **Estado:** Verificado. Ver ADR-6 en [`architecture.md`](./architecture.md).
 
+### RF-POR-002 — Integración directa con Spotify del artista
+
+- **Descripción:** el portfolio debe reflejar el catálogo real de ALIENSKILEZ en Spotify —
+  lanzamientos y, potencialmente, discografía completa — sin depender de que alguien lo actualice
+  a mano en `constants/portfolio.ts` cada vez que sale un tema.
+- **Razón de negocio:** ALS-003 (créditos reales del portfolio) ya identificó el problema de fondo:
+  un portfolio copiado a mano se desactualiza apenas hay un lanzamiento nuevo, justo cuando más
+  importa mostrarlo. Conectar con la fuente real lo resuelve de raíz.
+- **Tensión con una decisión ya cerrada:** este requisito choca de frente con ADR-1
+  (`architecture.md`) — "sin backend, sin secretos". La Web API de Spotify que da metadata rica
+  requiere `client_secret`, que no puede vivir en un bundle público. Por eso el requisito queda
+  **Propuesto**, no Aprobado: la decisión de *cómo* se implementa (ADR-11) define si el proyecto
+  sigue siendo 100% estático o gana su primera pieza de infraestructura.
+- **Reglas de negocio (provisionales, sujetas a la decisión de ADR-11):**
+  - RN-01: cualquiera sea el mecanismo elegido, no debe requerir editar código para reflejar un
+    lanzamiento nuevo.
+  - RN-02: ninguna credencial secreta (`client_secret`, tokens de larga duración) puede quedar
+    expuesta en el bundle del cliente — es una línea roja, no una preferencia de diseño.
+- **Criterio:** CP-POR-002 — un lanzamiento nuevo en Spotify aparece en el sitio sin deploy de
+  código, solo con el paso natural del tiempo (o, en el camino 3 de ADR-11, con una actualización
+  de constante que sigue siendo más rápida que antes).
+- **Estado:** Propuesto. Ver ADR-11 de `architecture.md` y ALS-026/ALS-027 de `backlog.md`.
+
 ## 5. Lo que no se pudo verificar todavía
 
 Dicho explícitamente, no disimulado:
 
-1. **El flujo real hasta WhatsApp (RF-BKG-004).** `WHATSAPP.NUMBER` sigue siendo el placeholder
-   `000000000000`. La construcción del mensaje y de la URL está cubierta por tests, pero el
-   trayecto completo hasta un chat real no se ejercitó. Es el bloqueante de despliegue.
+1. **El flujo real hasta WhatsApp desde un móvil (RF-BKG-004).** `WHATSAPP.NUMBER` ya es el número
+   real (ALS-001, cerrado). La construcción del mensaje y de la URL está cubierta por tests, y se
+   confirmó manualmente que la URL generada abre `wa.me` con el mensaje correcto. Lo que falta es
+   repetir esa prueba desde un dispositivo móvil real, no solo verificarla en el código.
 2. **Lighthouse (RNF-RND-001, RNF-ACC-002).** No se corrió todavía. Los tamaños de bundle sí están
    medidos; las puntuaciones no.
 3. **Lector de pantalla (RNF-ACC-002).** La semántica está construida según el checklist, pero no

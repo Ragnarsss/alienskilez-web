@@ -149,11 +149,11 @@ flowchart LR
   un mensaje imperfecto es mejor que un lead perdido (RN-03 de RF-BKG-003).
 
 ### Flujos de excepción
-- **E1: el número de WhatsApp es el placeholder.** ⚠️ Condición **actual** del proyecto. El chat se
-  abre contra un número inexistente y la conversión se pierde en silencio. Mitigado con un aviso
-  visible en el formulario que **solo aparece en desarrollo** (`import.meta.env.DEV`) y con el
-  checklist bloqueante de [`quality-gates.md`](./quality-gates.md) §7. **No resuelto**: depende de
-  que el Productor entregue el número (ALS-001).
+- **E1: el número de WhatsApp es el placeholder.** Ya no es la condición actual (ALS-001,
+  cerrado el 2026-08-12): `WHATSAPP.NUMBER` es un número real. El aviso de desarrollo
+  (`import.meta.env.DEV`) y el checklist de `quality-gates.md` §7 quedan como red de seguridad
+  permanente — cualquier futuro cambio de número que deje la constante mal escrita se detecta
+  igual, no solo la primera vez.
 - **E2: el navegador bloquea la pestaña emergente.** El visitante queda sin feedback. No manejado
   hoy — ver deuda en `backlog.md` ALS-018.
 
@@ -214,6 +214,13 @@ flowchart LR
 ### Reglas de negocio
 - RN-01: el portfolio se presenta como progresión, no como grilla plana — cuenta una evolución.
 - RN-02: no se publican créditos que no sean reales (ver CU-TRA-001 RN-01).
+
+### Extensión propuesta, no implementada (RF-POR-002)
+Cuando se cierre ADR-11 (`architecture.md` §7), el paso 2 deja de leer solo de
+`PORTFOLIO_ITEMS` y pasa a reflejar el catálogo real de Spotify — vía embed oficial o vía una
+función serverless, según lo que se decida. En ese momento corresponde una ficha `CU-POR-002`
+propia, con su propio actor secundario (Spotify como sistema activo, no pasivo) y sus propios
+flujos de excepción (catálogo sin conexión, límite de cuota si hubiera Web API de por medio).
 
 ---
 

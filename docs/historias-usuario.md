@@ -182,7 +182,7 @@ Fecha: 2026-08-12
 > Como **artista o manager**, quiero escuchar producciones anteriores, para juzgar el resultado por
 > mí mismo en vez de creer en adjetivos.
 
-- Épica: Persuasión · Prioridad: Media · 5 SP · RF: RF-POR-001 · CU: CU-POR-001
+- Épica: Persuasión · Prioridad: Media · 5 SP · RF: RF-POR-001, RF-POR-002 · CU: CU-POR-001
 - Estado: **Cerrada con datos pendientes** — la estructura funciona; faltan los créditos reales.
 
 ### Criterios de aceptación
@@ -192,6 +192,9 @@ Fecha: 2026-08-12
   reproducirla sin salir del sitio.
 - **CA-03:** Dado que un trabajo aún no tiene pista cargada, cuando lo veo, entonces aparece un
   marcador de pendiente, **nunca un reproductor roto**.
+- **CA-04 (RF-POR-002, aún no implementado):** Dado que sale un lanzamiento nuevo en Spotify,
+  cuando visito el sitio, entonces lo veo reflejado sin que nadie haya tocado código — ver la
+  decisión de arquitectura abierta en `architecture.md` §7 (ADR-11).
 
 ---
 
