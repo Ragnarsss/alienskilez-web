@@ -29,6 +29,9 @@ Deliberadamente más chico que un proyecto institucional. Es una decisión, no u
 - **React Compiler** activo (ADR-3) — sin memoización manual en todo el repo.
 - **Tailwind CSS v4** vía `@tailwindcss/vite`, CSS-first con `@theme`. Sin `tailwind.config.js`.
 - **Framer Motion** para scroll-reveal y microinteracciones, con `reducedMotion="user"`.
+- **Lenis** para el smooth scroll global (ADR-14).
+- **3dsvg** (sobre Three.js + `@react-three/fiber` + `drei`) para el isotipo giratorio del Hero —
+  **cargado en diferido**, nunca en el bundle inicial (ADR-12).
 - **react-hook-form + zod** para el único formulario real.
 - **Vitest** para la única lógica que puede fallar.
 - **ESLint flat config** + `typescript-eslint` + `eslint-plugin-react-hooks@7` (que ya incluye
@@ -238,6 +241,11 @@ escribe un color literal; todos usan la utilidad generada.
 colores de la paleta aparecen con su valor exacto.
 **Consecuencia:** un color nuevo se agrega en `@theme`, nunca como clase arbitraria
 `bg-[#08cb00]` en un componente.
+**Única excepción, acotada y vigilada (ADR-12):** `shared/constants/theme.ts` repite el valor de
+`--color-accent` como literal, porque Three.js pinta sobre un canvas WebGL y no resuelve `var()` —
+pasarle la variable da negro, en silencio. Para que la excepción no derive, `theme.test.ts` lee el
+CSS real y falla si los dos valores dejan de coincidir. Cualquier futura necesidad de un token en
+JavaScript sigue esa misma regla: literal + test que lo ate al CSS, nunca un literal suelto.
 
 ### ADR-8 — `no-restricted-imports` del core en vez de `eslint-plugin-import`
 
@@ -314,24 +322,49 @@ en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (cana
   desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
   disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
 
-### ADR-12 — Hero: placeholder interino sin depender del asset final
+### ADR-12 — Isotipo 3D del Hero con WebGL real, cargado en diferido
 
-**Contexto:** el Hero debe llevar una pieza de marca en pseudo-3D que rote al hacer click y
-arrastrar. No existe todavía un isotipo 3D definitivo — el Productor lo está diseñando aparte como
-un SVG 3D.
-**Decisión:** se implementa ahora un placeholder propio (forma geométrica simple, en la misma
-familia visual que el favicon actual) con la interacción completa —arrastre, rotación,
-inercia—, en vez de esperar al asset final para tener algo funcional que evaluar.
-**Por qué no esperar:** la interacción (cómo rota, cuánta inercia tiene, cómo se siente al
-arrastrar) es independiente del dibujo que rota. Construirla ahora permite ajustar la sensación
-de la interacción sin bloquearse en el asset, y el swap del asset final es después un cambio de
-una sola pieza (ver §4 de `design-system.md` para el punto exacto de reemplazo).
-**Por qué sin Three.js/WebGL:** es una rotación de una pieza plana en dos ejes por arrastre, no
-geometría 3D real ni iluminación — `transform-style: preserve-3d` + `perspective` de CSS alcanza,
-mapeando el delta de `pointermove` a `rotateX`/`rotateY`. Sumar un motor 3D completo para esto
-sería la misma sobre-ingeniería que ADR-2 evita con los primitivos de UI.
-**Consecuencia:** el placeholder queda marcado explícitamente como interino en el código (mismo
-espíritu que ADR-6 con los datos pendientes, aplicado acá a un asset en vez de a un dato).
+> **Esta ADR reemplaza una versión anterior que decidía lo contrario.** La primera versión
+> resolvía el giro con CSS 3D (`preserve-3d` + `perspective`) y argumentaba explícitamente que
+> sumar un motor 3D sería sobre-ingeniería. Ese razonamiento era correcto **para el requisito que
+> existía entonces** — girar una pieza al arrastrarla. Dejó de serlo cuando el requisito cambió,
+> y por qué dejó de serlo está abajo. La versión vieja se conserva en el historial de git.
+
+**Contexto:** el requisito final del Hero es un isotipo que **gire continuamente sobre su eje
+vertical**, no solo que responda al arrastre. El Productor entregó el glyph como SVG plano y eligió
+`3dsvg` como herramienta.
+**Por qué CSS 3D ya no alcanza:** un SVG es una superficie plana. Con `rotateY` continuo, dos veces
+por vuelta queda de canto y **desaparece** — no tiene grosor que mostrar. Girar sin parar exige
+volumen real, y eso significa extruir la geometría del path: es exactamente lo que hace `3dsvg`
+sobre Three.js. No es que la solución anterior estuviera mal implementada; es que "rotar al
+arrastrar" y "rotar infinitamente" son requisitos con necesidades geométricas distintas.
+**Decisión:** `<SVG3D>` de `3dsvg` (Three.js + `@react-three/fiber` + `drei`), con `animate="spin"`
+para el giro continuo y `draggable` para que el visitante pueda tomarlo. El glyph vive como
+**archivo SVG real** (`src/assets/alien-glyph.svg`), importado con `?raw` — reemplazarlo por otro
+isotipo es cambiar ese archivo y nada más.
+
+**El costo, medido, no estimado:**
+
+| Chunk | Crudo | Gzip |
+|---|---|---|
+| Bundle principal | 496.10 kB | **157.10 kB** |
+| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** |
+
+El motor 3D pesa **el doble que todo el resto del sitio junto**. Por eso no se importa de forma
+estática: `HeroMark3D` lo carga con `lazy()` + `<Suspense>`, así WebGL queda en un chunk aparte que
+**no bloquea el primer render**. El bundle inicial pasó de 155.85 a 157.10 kB gzip — 1.25 kB, el
+costo del wrapper. El texto del Hero y los CTA, que son lo que convierte, pintan sin esperar a que
+baje el motor 3D.
+**Consecuencia aceptada:** un visitante con conexión lenta ve el texto y los botones enseguida, y
+el isotipo aparece unos segundos después (con un placeholder que reserva su espacio, sin salto de
+layout). Es el orden correcto de prioridades: el alien es decorativo, el CTA no.
+**Restricción que impone WebGL:** Three.js no resuelve `var(--color-accent)` — parsea colores con
+`new THREE.Color()`, que no sabe de CSS. El color se pasa como literal desde
+`shared/constants/theme.ts`, la **única excepción** a ADR-7, con un test que falla si ese valor
+deja de coincidir con el token del CSS. La excepción está acotada y vigilada, no es una grieta.
+**Qué se revisa si el sitio necesita adelgazar:** este chunk es el primer candidato obvio (ver
+ALS-024). Si el Lighthouse de ALS-019 muestra que el LCP no cumple, la pregunta no es cómo
+optimizar el 3D sino si el alien giratorio vale 320 kB.
 
 ### ADR-13 — Motion imperativo (paralaje, contadores) requiere su propio check de `prefers-reduced-motion`
 
@@ -351,6 +384,25 @@ habría sido fácil de no notar (build y lint pasan igual con o sin el check).
 **Regla general que se desprende:** todo motion nuevo que use `useTransform`/`useScroll`/
 `animate()` fuera de las props declarativas de Framer necesita su propio `useReducedMotion()` —
 no alcanza con que `MotionConfig` esté configurado en la raíz.
+
+### ADR-14 — Smooth scroll con Lenis, no con `scroll-behavior: smooth`
+
+**Contexto:** el sitio es un one-pager que se recorre scrolleando, con navegación por anclas y un
+Hero con scroll-pin y paralaje. La primera versión usaba `scroll-behavior: smooth` del navegador.
+**Decisión:** el suavizado lo controla **Lenis** (`useLenis`, inicializado una vez en `App.tsx`), y
+`scroll-behavior` en el CSS pasa a `auto` explícitamente.
+**Por qué:** `scroll-behavior: smooth` solo interpola los saltos programáticos (clic en un ancla);
+el scroll con rueda o trackpad sigue siendo el del sistema, así que el sitio se siente suave al
+navegar por el menú y abrupto al scrollear a mano. Lenis interpola **ambos**, que es lo que sostiene
+la sensación de recorrido continuo que el Hero con paralaje ya insinúa.
+**Por qué las dos cosas no conviven:** dejar `scroll-behavior: smooth` con Lenis activo pone dos
+motores a interpolar el mismo scroll, y pelean. Por eso el CSS lo apaga a propósito — el comentario
+en `index.css` lo dice, para que nadie lo "arregle" de vuelta.
+**Accesibilidad:** `useLenis` no se inicializa si el usuario pide `prefers-reduced-motion`, y en ese
+caso el scroll nativo queda intacto. Es el mismo criterio de ADR-13: el movimiento imperativo se
+apaga explícitamente, no se asume cubierto.
+**Costo:** ~15 kB gzip, dentro del bundle principal. A diferencia del motor 3D (ADR-12), esto sí
+afecta a todo visitante desde el primer scroll, así que carga de forma estática.
 
 ## 7. Deuda conocida y diferida a propósito
 

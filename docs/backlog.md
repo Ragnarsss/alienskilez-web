@@ -284,22 +284,38 @@ guarda igual en Secrets Manager, nunca en el bundle.
 **Bloqueado por:** que ALS-026 esté desplegado y probado primero — no tiene sentido resolver el
 patrón dos veces en paralelo.
 
-### ALS-028 — Hero: marca 3D interactiva (rotación por arrastre)
+### ALS-028 — Hero: isotipo 3D giratorio
 
-- Prioridad: P2 · Esfuerzo: L · Estado: **Hecho (placeholder)** — asset final pendiente
+- Prioridad: P2 · Esfuerzo: L · Estado: **Hecho** — asset definitivo pendiente (ALS-006)
 
-Decisión cerrada (ADR-12): placeholder propio con la interacción completa, sin esperar al isotipo
-final. Implementado sin Three.js/WebGL: `transform-style: preserve-3d` + `perspective` de CSS,
-`pointermove` durante el arrastre mapeado a `rotateX`/`rotateY`, e inercia al soltar vía
-`requestAnimationFrame` con decaimiento.
+Implementado con `3dsvg` (Three.js + fiber + drei) según ADR-12: el glyph del alien se **extruye a
+geometría 3D real** y gira de forma continua sobre su eje vertical, con `draggable` para que el
+visitante pueda tomarlo y girarlo a mano.
 
-**Punto de reemplazo:** el Productor está diseñando el isotipo 3D final como SVG aparte. Cuando
-esté listo, se reemplaza en un solo lugar — ver el comentario `PLACEHOLDER` en el componente del
-hero y §4 de `design-system.md`. El mecanismo de arrastre/inercia no cambia, solo el dibujo.
+**Cambio de rumbo respecto al plan original, y por qué.** La primera versión resolvía esto con CSS
+3D y ADR-12 argumentaba explícitamente que sumar Three.js sería sobre-ingeniería. Cuando el
+requisito pasó de "rota al arrastrar" a "**gira infinitamente**", ese razonamiento dejó de
+aplicar: un SVG es plano, y girando sin parar queda de canto y desaparece dos veces por vuelta.
+Girar continuo exige volumen real. El código CSS-3D (`useDraggableRotation`, clases
+`.hero-mark-scene`/`.hero-mark-object`) se **eliminó** en vez de dejarse muerto — `draggable` de
+`3dsvg` cubre el arrastre.
 
-**Criterios:** arrastrar con mouse o touch rota la pieza en los dos ejes; al soltar, la rotación
-decae con inercia en vez de detenerse en seco; con `prefers-reduced-motion: reduce` la pieza
-sigue rotable pero sin la inercia final (queda donde se soltó).
+**El costo, medido:** el motor 3D pesa 319.63 kB gzip, más del doble que el resto del sitio. Va en
+un chunk diferido (`lazy()` + `<Suspense>`), así que el bundle inicial solo subió 1.25 kB. Ver
+`quality-gates.md` §2 — está contenido, no resuelto.
+
+**Punto de reemplazo del asset:** `src/assets/alien-glyph.svg`. Es un SVG normal; cambiarlo por el
+isotipo definitivo cuando exista (ALS-006) no requiere tocar código.
+
+**Restricción heredada:** Three.js no lee `var(--color-accent)`, así que el color sale de
+`shared/constants/theme.ts` (literal), con un test que falla si se desincroniza del CSS. Es la
+única excepción a ADR-7.
+
+**Criterios verificados:** gira solo al cargar; se puede arrastrar; con `prefers-reduced-motion`
+no gira ni hace intro; `lint`, `test` (25) y `build` limpios; el chunk 3D sale separado del
+bundle inicial.
+**Sin verificar:** el render visual real en navegador — este entorno no tiene automatización de
+browser. Queda a confirmación del Productor.
 
 ### ALS-029 — Hero: aura que sigue al mouse
 
@@ -462,9 +478,20 @@ haya tráfico real que medir; instrumentar antes es medir a ciegas.
 
 ### ALS-024 — Reducir el peso del JavaScript
 
-139 kB gzip es alto para una landing. El primer candidato es reemplazar Framer Motion por CSS o
-IntersectionObserver: el uso actual es scroll-reveal simple. Se hace **si** ALS-019 muestra que el
-LCP no cumple, no antes.
+Actualizado tras ALS-028. Hoy son dos problemas distintos, no uno:
+
+| Qué | Gzip | Bloquea el render | Candidato a recortar |
+|---|---|---|---|
+| Bundle inicial | 157 kB | Sí | Framer Motion (el uso es scroll-reveal simple, se puede hacer con IntersectionObserver) |
+| Chunk 3D | 320 kB | No (diferido) | El isotipo giratorio entero |
+
+El bundle inicial **ya pasó el umbral verde de 150 kB** (`quality-gates.md` §2). El chunk 3D pesa
+el doble que todo el resto junto para un elemento decorativo.
+
+La pregunta a responder con datos de ALS-019 no es "cómo optimizamos el 3D" sino **"¿el alien
+giratorio justifica 320 kB para un visitante en datos móviles?"**. Si la respuesta es no, la
+alternativa barata es un render estático del isotipo (PNG/WebP con transparencia) y guardar el
+WebGL solo para escritorio. Se decide con el Lighthouse en la mano, no antes.
 
 ### ALS-025 — Preselección del servicio desde las cards
 
@@ -505,7 +532,7 @@ vista. Ver ADR-5.
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | 🟡 Parcial — handler sin desplegar | Cuenta AWS + Artist ID + ALS-031 |
 | ALS-027 | G     | P2     | M        | Pendiente                          | ALS-026 desplegado               |
-| ALS-028 | G     | P2     | L        | ✅ Hecho (placeholder)             | Asset final: ALS-006             |
+| ALS-028 | G     | P2     | L        | ✅ Hecho                           | Asset definitivo: ALS-006        |
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
 | ALS-031 | G     | P2     | M        | Pendiente                          | Cuenta AWS del Productor         |

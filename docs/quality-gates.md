@@ -21,18 +21,26 @@ consciente, ver `architecture.md` §7): los corre quien mergea.
 
 ## 2. Rendimiento
 
-### Línea base medida (2026-08-12)
+### Línea base medida (2026-08-12, tras ALS-028)
 
-| Artefacto | Crudo | Gzip |
-|---|---|---|
-| `index.html` | 1.64 kB | 0.69 kB |
-| CSS | 30.82 kB | 6.58 kB |
-| JS | 442.66 kB | **139.20 kB** |
+| Artefacto | Crudo | Gzip | Cuándo se descarga |
+|---|---|---|---|
+| `index.html` | 1.64 kB | 0.69 kB | Siempre |
+| CSS | 35.06 kB | 7.36 kB | Siempre |
+| **JS inicial** | 496.10 kB | **157.10 kB** | Siempre |
+| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** | En diferido, solo para el isotipo del Hero |
 
-**Lectura honesta:** 139 kB de JS gzipeado es alto para una página estática sin interactividad
-compleja. Lo explican React + React DOM, Framer Motion, zod y react-hook-form. Es aceptable hoy
-—el sitio es una sola página y las fuentes pesan más que el JS en la percepción de carga— pero es
-el primer lugar donde mirar si el LCP no cumple.
+**Lectura honesta:** el JS inicial creció de 139 a 157 kB gzip (React, Framer Motion, Lenis, zod,
+react-hook-form) y **ya excede el umbral verde de 150 kB**. Está en amarillo, no en rojo, y es
+consciente.
+
+El chunk 3D es el dato incómodo: **319 kB gzip, el doble que todo el resto del sitio junto**, para
+un elemento puramente decorativo. Está aislado con `lazy()` (ADR-12), así que no bloquea el primer
+render — el texto y los CTA pintan sin esperarlo. Pero sigue siendo ancho de banda que un visitante
+en móvil con datos móviles va a gastar en un alien que gira.
+
+**Esto no está resuelto, está contenido.** La decisión de fondo —si el isotipo giratorio vale
+320 kB— se toma con los datos de ALS-019 (Lighthouse real), no antes. Ver ALS-024.
 
 ### Umbrales
 
@@ -45,7 +53,14 @@ el primer lugar donde mirar si el LCP no cumple.
 | LCP | ≤ 2.5s | 2.5-4s | > 4s |
 | CLS | ≤ 0.1 | 0.1-0.25 | > 0.25 |
 | INP | ≤ 200ms | 200-500ms | > 500ms |
-| JS total (gzip) | ≤ 150 kB | 150-250 kB | > 250 kB |
+| **JS inicial** (gzip, bloqueante) | ≤ 150 kB | 150-250 kB | > 250 kB |
+| **JS diferido** (gzip, por chunk) | ≤ 200 kB | 200-350 kB | > 350 kB |
+
+> **Por qué dos umbrales de JS y no uno.** Sumar todo el JavaScript en una sola cifra trata igual a
+> lo que bloquea el primer render y a lo que se descarga después. Un chunk diferido de 300 kB
+> molesta bastante menos que 300 kB bloqueando el LCP. La fila que hay que mirar primero es la de
+> JS **inicial** — hoy en amarillo (157 kB); el chunk 3D está en amarillo alto (319 kB) y es el
+> primer candidato a recortar si Lighthouse reprueba.
 
 > **INP, no FID.** FID quedó obsoleto como Core Web Vital en marzo de 2024; `performance.md` de
 > radarop todavía lo lista. Acá se mide INP.
@@ -67,6 +82,9 @@ desarrollo no minifica y las métricas no significan nada.
 - Los `<iframe>` de portfolio llevan `loading="lazy"`, y no se renderizan si `embedUrl` está vacío.
 - Fondos decorativos en CSS puro (starfield, grid HUD): cero peso de red, cero JS.
 - Tailwind v4 emite solo las utilidades usadas.
+- **El motor 3D (Three + fiber + drei) va en un chunk diferido** vía `lazy()` + `<Suspense>` en
+  `HeroMark3D.tsx` — sin eso, el bundle inicial sería de ~477 kB gzip en vez de 157.
+- El fallback del isotipo reserva su tamaño exacto, así que su carga diferida **no genera CLS**.
 
 ### Si hay que bajar el JS
 
