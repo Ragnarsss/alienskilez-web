@@ -42,8 +42,13 @@ export const HERO_MARK = {
    * silencio. `theme.test.ts` falla si este valor deja de coincidir con el CSS.
    */
   COLOR: "#08cb00",
-  /** Suavizado de los bordes extruidos (0-1). */
-  SMOOTHNESS: 0.6,
+  /**
+   * Suavizado de los bordes extruidos (0-1). Impacta MUCHO el costo: cada
+   * paso sube los segmentos de curva y de bisel, y con esta silueta 0.6 daba
+   * ~300.000 vértices contra ~110.000 de 0.3, sin diferencia visible al
+   * tamaño que ocupa en el Hero.
+   */
+  SMOOTHNESS: 0.3,
   /** Velocidad del giro horizontal. Lento a propósito: acompaña, no distrae del copy. */
   SPIN_SPEED: 0.4,
   /** Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso 0→1). */
