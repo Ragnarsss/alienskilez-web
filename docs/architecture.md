@@ -30,8 +30,8 @@ Deliberadamente más chico que un proyecto institucional. Es una decisión, no u
 - **Tailwind CSS v4** vía `@tailwindcss/vite`, CSS-first con `@theme`. Sin `tailwind.config.js`.
 - **Framer Motion** para scroll-reveal y microinteracciones, con `reducedMotion="user"`.
 - **Lenis** para el smooth scroll global (ADR-14).
-- **Sin motor 3D.** El isotipo giratorio del Hero se resuelve con capas apiladas en CSS, no con
-  WebGL (ADR-12).
+- **3dsvg** (sobre Three.js + `@react-three/fiber` + `drei`) para el isotipo giratorio del Hero —
+  **cargado en diferido**, nunca en el bundle inicial (ADR-12).
 - **react-hook-form + zod** para el único formulario real.
 - **Vitest** para la única lógica que puede fallar.
 - **ESLint flat config** + `typescript-eslint` + `eslint-plugin-react-hooks@7` (que ya incluye
@@ -324,55 +324,64 @@ en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (cana
   desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
   disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
 
-### ADR-12 — Isotipo del Hero: volumen por capas en CSS, sin WebGL
+### ADR-12 — Isotipo del Hero: extrusión 3D real con `3dsvg`, cargada en diferido
 
-> **Tercera versión de esta ADR.** Cambió dos veces y las dos veces se registró por qué. El
-> historial completo está en git; el resumen honesto es este:
->
-> | Versión | Decisión | Qué la invalidó |
-> |---|---|---|
-> | 1ª | CSS 3D, girar al arrastrar | El requisito pasó a **giro continuo**, y un plano girando desaparece de canto |
-> | 2ª | `3dsvg` sobre Three.js | Costaba 320 kB gzip y **no renderizaba** — dos intentos fallidos sin diagnóstico posible |
-> | 3ª (esta) | Volumen por capas apiladas en CSS | — |
->
-> Que una ADR cambie no es malo; que cambie sin dejar rastro, sí.
+**Decisión:** el isotipo del Hero se extruye a geometría 3D con `3dsvg` (Three.js +
+`@react-three/fiber` + `drei`), con `animate="spin"` para el giro continuo sobre el eje vertical y
+`draggable` para que el visitante pueda tomarlo. Se carga con `lazy()`: el motor 3D pesa más que
+todo el resto del sitio junto y no tiene por qué bloquear el primer render.
 
-**Contexto:** el Hero lleva el isotipo de la marca girando de forma continua sobre su eje
-vertical, y el visitante puede tomarlo y girarlo a mano. El glyph existe como SVG plano.
-**El problema geométrico:** un SVG es una superficie sin grosor. Con `rotateY` continuo queda de
-canto dos veces por vuelta y **desaparece**. Girar sin parar exige volumen real.
-**Por qué falló el intento con Three.js:** `3dsvg` extruía la geometría de verdad y resolvía el
-problema en el papel. En la práctica no se vio nunca. La primera causa fue mía —`material="chrome"`
-es metalness 1, o sea un espejo, y reflejaba un entorno casi negro sobre un fondo negro—, pero
-corregida a `emissive` el isotipo **siguió sin aparecer**, y a esa altura el diagnóstico era
-imposible: una caja negra sobre WebGL que este entorno no puede inspeccionar.
-**Decisión:** el volumen se construye apilando **28 copias del mismo path** a profundidades
-crecientes con `translateZ`, dentro de un contenedor con `transform-style: preserve-3d`. Rotando,
-la pila se lee como un objeto sólido: de canto se ve el grosor. Un gradiente de `brightness` por
-capa evita que parezca un sándwich de láminas y le da sensación de masa.
+**Por qué hace falta 3D real:** un SVG es una superficie sin grosor. Con `rotateY` continuo queda
+de canto dos veces por vuelta y desaparece. Y el bisel y el sombreado PBR que dan el aspecto de
+objeto sólido no se consiguen con CSS: se probó apilando 28 copias del path con `translateZ` y
+daba volumen, pero nunca el material.
 
-**Lo que se ganó, medido:**
+**El costo, medido:**
 
-| | Antes (Three.js) | Ahora (CSS) |
+| Chunk | Crudo | Gzip |
 |---|---|---|
-| Bundle inicial | 157.10 kB gzip | 157.60 kB gzip |
-| Chunk extra | **319.63 kB gzip** | **ninguno** |
-| **Total a descargar** | **~477 kB** | **~158 kB** |
-| Dependencias | `3dsvg` + `three` + `fiber` + `drei` | ninguna |
-| Requiere GPU/WebGL | Sí | No |
+| Bundle inicial | 496.69 kB | **157.27 kB** |
+| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** |
 
-**Consecuencias que se desprenden:**
-- Se eliminó `shared/constants/theme.ts` y su test: existían solo porque Three.js no resuelve
-  `var()`. En el DOM el color vuelve a salir del token, y **ADR-7 deja de tener excepciones**.
-- El glyph sigue viviendo como archivo (`src/assets/alien-glyph.svg`): el componente extrae de él
-  el `d`, el `viewBox` y el `fill-rule` en vez de asumirlos, así cambiar el isotipo no requiere
-  tocar código. El `fill-rule="evenodd"` importa: sin él los ojos del alien se rellenan en vez de
-  recortarse.
-- No es extrusión real: es una ilusión por capas. Vista muy de cerca o girada 90° exactos se nota
-  que son láminas. A la escala del Hero no se distingue, y ese es el trade que se aceptó.
+El motor 3D pesa el doble que el resto del sitio. Va en un chunk diferido, así que el texto y los
+CTA pintan sin esperarlo. Sigue siendo la deuda que ALS-024 tiene que resolver con datos de
+Lighthouse (ALS-019), no antes.
 
-**Cuándo reconsiderar WebGL:** si el isotipo definitivo necesita materiales, reflejos o
-iluminación reales, o si aparece un segundo elemento 3D en el sitio. Para un objeto que gira, no.
+**Reglas que impone esta decisión, todas aprendidas rompiéndolas:**
+
+1. **El contenedor necesita tamaño explícito.** Los defaults de `<SVG3D>` son `width`/`height` al
+   `"100%"`; sobre un padre de altura automática el canvas mide 0px y no se ve nada, sin ningún
+   error.
+2. **Se le pasan pocas props.** Los defaults están calibrados entre sí. Pasarle `background`,
+   `width`/`height` y overrides de luz a la vez dejó el canvas vacío.
+3. **La señal de "listo" es `onLoadingChange`, no `onReady`.** `onReady` dispara en el primer
+   frame del canvas, antes de que termine la extrusión asíncrona.
+4. **El color va como literal** (`HERO_MARK.COLOR`): Three.js pinta sobre canvas WebGL y no
+   resuelve `var()`. Es la única excepción a ADR-7 y `theme.test.ts` la vigila.
+5. **`SMOOTHNESS` es caro.** Medido sobre esta silueta: 0.6 genera ~300.000 vértices contra
+   ~110.000 de 0.3, sin diferencia visible al tamaño del Hero.
+
+**Degradación:** el mismo glyph se renderiza plano debajo del canvas y solo se apaga cuando la
+extrusión confirma que terminó. Si WebGL no está disponible o la escena falla, queda el alien
+plano con su glow — nunca un hueco (ADR-6). Un límite de error alrededor de la escena evita
+además que una excepción de WebGL se lleve puesto el resto del Hero.
+
+**Historial.** Esta ADR se reescribió tres veces antes de quedar acá, y las tres tuvieron causa
+real. Vale la pena el registro porque la conclusión no es obvia:
+
+| Versión | Decisión | Qué la invalidó |
+|---|---|---|
+| 1ª | CSS 3D, girar al arrastrar | El requisito pasó a giro **continuo**, y un plano girando desaparece de canto |
+| 2ª | `3dsvg` | No renderizaba, y no se pudo diagnosticar |
+| 3ª | Volumen por capas CSS | Daba volumen pero no bisel ni material PBR |
+| 4ª (esta) | `3dsvg` | — |
+
+La 2ª y la 3ª existieron por **un mismo bug de un carácter**, no por un problema de la
+herramienta: un comentario de documentación dentro del archivo SVG contenía un doble guion, que
+XML prohíbe dentro de comentarios. El `DOMParser` del navegador devolvía `parsererror`, `3dsvg`
+no encontraba paths y abortaba **en silencio**. Al no poder diagnosticarlo, se descartó la
+herramienta correcta y se construyó un reemplazo peor. Ver §7 de
+[`engineering-guidelines.md`](./engineering-guidelines.md) para la lección que dejó.
 
 ### ADR-13 — Motion imperativo (paralaje, contadores) requiere su propio check de `prefers-reduced-motion`
 

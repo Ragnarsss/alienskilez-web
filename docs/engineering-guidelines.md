@@ -192,6 +192,41 @@ constante. Si solo se pinta → se queda.
 - Foco visible con `:focus-visible`; el glow decorativo **no** reemplaza el anillo de foco.
 - Toda animación respeta `prefers-reduced-motion`.
 
+### Assets: son código, y pueden romperse en silencio
+
+Un `.svg` que un componente parsea **no es una imagen, es una entrada de datos**. Vale las mismas
+reglas que cualquier input.
+
+Esta sección existe por un bug concreto que costó varias sesiones: un comentario de documentación
+dentro de `alien-glyph.svg` contenía un doble guion, que XML prohíbe dentro de comentarios. El
+`DOMParser` del navegador devolvía `parsererror`, la librería 3D no encontraba paths y abortaba
+**sin lanzar ninguna excepción ni escribir nada en consola**. Solo un canvas vacío.
+
+Reglas que quedan:
+
+- **No pongas comentarios en un SVG que se parsea.** La documentación del asset va en el
+  componente que lo consume, que es código y no puede romper el parseo de nada.
+- **Todo asset parseado necesita un test.** `alien-glyph.test.ts` valida el `viewBox`, que haya
+  un path con datos, el `fill-rule` y la ausencia de dobles guiones en comentarios. Son cuatro
+  aserciones y habrían ahorrado todo el episodio.
+- **Un test de regresión no vale hasta verlo fallar.** Reintroducí el bug, confirmá que el test se
+  pone rojo, restaurá. Si no hiciste eso, no sabés qué está cubriendo.
+
+### Diagnosticar comportamiento del navegador: cuidado con los parsers permisivos
+
+Durante ese mismo bug usé `happy-dom` en Node para reproducir el parseo. Devolvía el resultado
+correcto **porque es permisivo**: aceptaba el XML mal formado que el navegador rechazaba. Node
+decía "1 forma", el navegador "0". Confié en esa medición y descarté la herramienta correcta
+—dos veces— por un problema que no estaba en ella.
+
+- Un entorno DOM emulado (`happy-dom`, `jsdom`) sirve para lógica que toca el DOM, **no** para
+  decidir si algo funciona en un navegador real. Su tolerancia es distinta a propósito.
+- Cuando el síntoma es "no se ve nada" y no hay excepción, la prioridad es **conseguir una señal
+  real del navegador** antes de cambiar de enfoque. Una página de aislamiento que muestre el
+  estado en pantalla resuelve en minutos lo que la especulación no resuelve en horas.
+- Y antes de descartar una herramienta que el resto del mundo usa sin problemas, la hipótesis por
+  defecto debería ser que el error está en cómo la estamos usando.
+
 ## 8. Definition of Done por ticket
 
 1. `npm run lint` limpio.

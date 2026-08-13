@@ -12,7 +12,7 @@ React Compiler activo — lo que **invalida** algunas de sus recomendaciones (ve
 
 ```bash
 npm run lint     # ESLint + reglas del React Compiler
-npm test         # Vitest — 24 tests sobre schema y builder del mensaje
+npm test         # Vitest — 29 tests: schema, builder del mensaje y validez del SVG
 npm run build    # tsc -b (strict) + vite build
 ```
 
@@ -21,23 +21,25 @@ consciente, ver `architecture.md` §7): los corre quien mergea.
 
 ## 2. Rendimiento
 
-### Línea base medida (2026-08-12, tras ALS-028 en su versión CSS)
+### Línea base medida (2026-08-12, tras ALS-028)
 
 | Artefacto | Crudo | Gzip | Cuándo se descarga |
 |---|---|---|---|
 | `index.html` | 1.64 kB | 0.69 kB | Siempre |
-| CSS | 35.66 kB | 7.51 kB | Siempre |
-| **JS** | 499.97 kB | **157.60 kB** | Siempre |
+| CSS | 35.84 kB | 7.46 kB | Siempre |
+| **JS inicial** | 496.69 kB | **157.27 kB** | Siempre |
+| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** | En diferido, solo el isotipo del Hero |
 
-**Un solo chunk.** Hubo brevemente un segundo chunk de 319.63 kB gzip (Three.js + fiber + drei)
-para el isotipo 3D del Hero; se eliminó al resolver ese efecto con capas CSS (ADR-12). El total a
-descargar pasó de ~477 kB a ~158 kB — un 67% menos, sin perder el efecto.
+**Lectura honesta:** el JS inicial **excede el umbral verde de 150 kB**. Está en amarillo y es
+consciente: lo explican React, Framer Motion, Lenis, zod y react-hook-form.
 
-**Lectura honesta:** 157 kB gzip **excede el umbral verde de 150 kB**. Está en amarillo y es
-consciente: lo explican React + React DOM, Framer Motion, Lenis, zod y react-hook-form. Framer
-Motion es el candidato más gordo y el uso actual (scroll-reveal, paralaje, contadores) es
-sustituible por IntersectionObserver + CSS si hiciera falta. No se toca hasta tener el Lighthouse
-de ALS-019: optimizar sin medir es adivinar.
+El chunk 3D es el dato incómodo: **el doble que todo el resto del sitio junto**, para un elemento
+decorativo. Está aislado con `lazy()` (ADR-12), así que no bloquea el primer render — el texto y
+los CTA pintan sin esperarlo, y si nunca llega queda el isotipo plano de respaldo. Pero sigue
+siendo ancho de banda que un visitante en datos móviles va a gastar en un alien que gira.
+
+**Esto no está resuelto, está contenido.** La decisión de fondo se toma con los datos de ALS-019
+(Lighthouse real), no antes. Ver ALS-024.
 
 ### Umbrales
 
@@ -54,9 +56,9 @@ de ALS-019: optimizar sin medir es adivinar.
 | **JS diferido** (gzip, por chunk) | ≤ 200 kB | 200-350 kB | > 350 kB |
 
 > **Por qué dos umbrales de JS y no uno.** Sumar todo el JavaScript en una sola cifra trata igual a
-> lo que bloquea el primer render y a lo que se descarga después. Hoy no hay chunks diferidos, pero
-> el umbral queda escrito: fue justamente lo que permitió ver que un chunk de 320 kB para un
-> elemento decorativo no se justificaba, aunque técnicamente "no bloqueara nada".
+> lo que bloquea el primer render y a lo que se descarga después. Un chunk diferido de 320 kB
+> molesta bastante menos que 320 kB bloqueando el LCP — pero sigue siendo ancho de banda real, y
+> por eso tiene su propio umbral en vez de quedar fuera de la cuenta.
 
 > **INP, no FID.** FID quedó obsoleto como Core Web Vital en marzo de 2024; `performance.md` de
 > radarop todavía lo lista. Acá se mide INP.
@@ -78,9 +80,12 @@ desarrollo no minifica y las métricas no significan nada.
 - Los `<iframe>` de portfolio llevan `loading="lazy"`, y no se renderizan si `embedUrl` está vacío.
 - Fondos decorativos en CSS puro (starfield, grid HUD): cero peso de red, cero JS.
 - Tailwind v4 emite solo las utilidades usadas.
-- **El isotipo 3D del Hero no usa WebGL**: son capas SVG apiladas con `translateZ` (ADR-12), lo
-  que ahorró 320 kB gzip frente a la versión con Three.js.
-- El isotipo tiene tamaño fijo por breakpoint, así que no genera CLS al montar.
+- **El motor 3D va en un chunk diferido** vía `lazy()` + `<Suspense>` en `HeroMark3D.tsx` — sin
+  eso el bundle inicial sería de ~477 kB gzip en vez de 157.
+- El isotipo tiene tamaño fijo por breakpoint y un respaldo plano debajo, así que su carga
+  diferida no genera CLS ni deja un hueco.
+- `SMOOTHNESS` del isotipo en 0.3: medido, 0.6 generaba ~300.000 vértices contra ~110.000, sin
+  diferencia visible a ese tamaño.
 
 ### Si hay que bajar el JS
 

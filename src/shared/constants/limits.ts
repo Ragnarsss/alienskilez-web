@@ -50,7 +50,7 @@ export const HERO_MARK = {
    */
   SMOOTHNESS: 0.3,
   /** Velocidad del giro horizontal. Lento a propósito: acompaña, no distrae del copy. */
-  SPIN_SPEED: 0.4,
+  SPIN_SPEED: 4,
   /** Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso 0→1). */
   REVEAL_STAGE: [0.02, 0.28] as [number, number],
   /** Tramo en el que se desvanece al final del Hero, cediendo el foco a los CTA. */
