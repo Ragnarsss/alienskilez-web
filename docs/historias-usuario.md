@@ -255,6 +255,185 @@ Fecha: 2026-08-12
 
 ---
 
+---
+
+# Historias propuestas (mejoras, sin construir)
+
+Alcance nuevo. Todas en estado **Propuesta**: definidas y justificadas, sin una línea escrita.
+
+El criterio para priorizarlas es el mismo que rige todo el sitio: **¿acerca al visitante a escribir
+por WhatsApp?** Una mejora que solo se ve linda va abajo, por buena que sea.
+
+| ID | Módulo | Título corto | Prioridad | Valor (1-5) | SP | Depende de | Estado |
+|---|---|---|---|---|---|---|---|
+| HU-AUD-001 | Audio | Oír la diferencia antes de contratar | **Alta** | **5** | 8 | — | Propuesta |
+| HU-PLT-001 | Plataformas | Ver el catálogo real y actualizado | **Alta** | 4 | 13 | ALS-031 (AWS) | Propuesta |
+| HU-BKG-002 | Booking | Mandar una referencia de sonido | Media | 4 | 3 | — | Propuesta |
+| HU-AUD-002 | Audio | Seguir escuchando mientras recorro | Media | 3 | 5 | HU-AUD-001 | Propuesta |
+| HU-ANL-001 | Analítica | Saber qué convierte y qué no | Media | 4 | 3 | Tráfico real | Propuesta |
+| HU-VIS-001 | Visual | Que el sitio se sienta un producto cuidado | Baja | 2 | 8 | — | Propuesta |
+
+---
+
+## HU-AUD-001 — Oír la diferencia antes de contratar
+
+> Como **artista que evalúa a quién confiarle su mezcla**, quiero escuchar el mismo fragmento antes
+> y después del trabajo del productor, para juzgar por mis oídos en vez de creerle a un texto.
+
+- Épica: Persuasión · Prioridad: **Alta** · 8 SP · Valor 5
+- RF: RF-AUD-001, RNF-AUD-001 · CU: CU-AUD-001 · Ticket: ALS-033
+
+**Por qué es la mejora de mayor impacto del backlog.** Un productor vende una diferencia audible.
+Hoy el sitio la *afirma* de tres formas —copy, cifras, testimonios— y ninguna deja comprobarla. El
+comparador A/B es la única pieza que convierte una afirmación en evidencia, en diez segundos y sin
+que el visitante tenga que confiar en nadie.
+
+### Criterios de aceptación
+
+- **CA-01:** Dado que estoy reproduciendo un fragmento, cuando alterno entre "antes" y "después",
+  entonces el audio cambia **manteniendo la posición** — no vuelve a empezar.
+- **CA-02:** Dado que comparo dos versiones, cuando escucho, entonces la diferencia que percibo es
+  de calidad y no de volumen: los niveles están emparejados.
+- **CA-03:** Dado que llego a la sección, cuando la página carga, entonces **no se descargó ningún
+  audio** hasta que yo lo pida.
+- **CA-04:** Dado que estoy en móvil con datos, cuando reproduzco, entonces el fragmento es corto
+  (referencia: 15-30 s) y no un track completo.
+
+### Reglas de negocio
+- RN-01: **emparejar niveles es obligatorio.** Un "después" más fuerte suena mejor aunque no lo
+  sea; publicarlo así sería el equivalente sonoro de inventar una cifra (ADR-6).
+- RN-02: el fragmento requiere autorización del artista dueño del track, igual que un testimonio.
+
+---
+
+## HU-PLT-001 — Ver el catálogo real y actualizado
+
+> Como **visitante**, quiero ver lo último que el productor publicó de verdad, para saber si sigue
+> activo y qué está haciendo ahora.
+>
+> Como **Productor**, quiero que eso se actualice solo cuando publico en Spotify o YouTube, para no
+> tener que acordarme de editar el sitio cada vez.
+
+- Épica: Persuasión + Mantenimiento · Prioridad: **Alta** · 13 SP · Valor 4
+- RF: RF-PLT-001, RF-PLT-002, RF-PLT-003, RNF-PLT-001, RNF-SEG-002 · CU: CU-PLT-001
+- Tickets: ALS-026 (Spotify), ALS-027 (YouTube), ALS-031 (infraestructura)
+- **Bloqueada por el Productor:** cuenta de AWS, Spotify Artist ID y registro de la app.
+
+**Estado real, dicho claro:** esto se planteó, tiene una ADR que fija el diseño (ADR-11) y **no
+tiene una sola línea escrita**. Una versión anterior de la documentación afirmaba que el handler
+existía; no era cierto y quedó corregido.
+
+### Criterios de aceptación
+
+- **CA-01:** Dado que el Productor publica un lanzamiento en Spotify, cuando entro al sitio,
+  entonces aparece sin que nadie haya tocado código ni desplegado.
+- **CA-02:** Dado que la plataforma no responde, cuando entro, entonces veo el portfolio curado
+  manualmente — **nunca un error ni una sección vacía**.
+- **CA-03:** Dado que el catálogo está cargando, cuando espero, entonces veo un esqueleto con la
+  forma del contenido, no un salto de layout.
+- **CA-04:** Dado que soy alguien curioso mirando el código del sitio, cuando reviso el bundle,
+  entonces **no encuentro ningún secreto** de Spotify ni de YouTube.
+
+### Reglas de negocio
+- RN-01: el contenido curado manualmente **no se borra** al conectar la plataforma. Convive: la API
+  aporta novedad, la curaduría aporta criterio — un lanzamiento reciente no es necesariamente el
+  mejor trabajo.
+- RN-02: los secretos viven en el servidor. Es lo único que obliga a tener una función serverless
+  en un sitio que por lo demás es estático (ADR-11).
+
+---
+
+## HU-BKG-002 — Mandar una referencia de sonido
+
+> Como **artista**, quiero adjuntar un enlace a un track que me gusta como referencia, para
+> explicar en un link lo que me costaría tres párrafos.
+
+- Épica: Conversión · Prioridad: Media · 3 SP · Valor 4
+- RF: RF-BKG-006 · CU: CU-BKG-001 · Ticket: ALS-036
+
+**Por qué vale:** "quiero que suene tipo X" es la forma en que los artistas realmente explican lo
+que buscan. Capturarlo en el formulario mejora la calidad del lead y le ahorra al Productor una
+ronda entera de repreguntas.
+
+### Criterios de aceptación
+- **CA-01:** Dado que pego un enlace de Spotify, YouTube o Drive, cuando envío, entonces viaja en
+  el mensaje de WhatsApp como línea propia.
+- **CA-02:** Dado que pego algo que no es un enlace, cuando envío, entonces el sistema me lo dice
+  antes de continuar.
+- **CA-03:** Dado que no tengo referencia, cuando envío, entonces el campo se omite del mensaje —
+  sigue siendo opcional.
+
+---
+
+## HU-AUD-002 — Seguir escuchando mientras recorro
+
+> Como **visitante**, quiero que la pista que puse siga sonando mientras sigo leyendo el sitio,
+> para no tener que elegir entre escuchar y avanzar hacia el formulario.
+
+- Épica: Persuasión · Prioridad: Media · 5 SP · Valor 3
+- RF: RF-AUD-002 · CU: CU-AUD-002 · Ticket: ALS-034 · Depende de HU-AUD-001
+
+**Por qué vale para la conversión:** hoy escuchar y avanzar compiten. Si el audio sobrevive al
+scroll, el visitante puede llegar al formulario **con la música del productor sonando** — que es
+exactamente el estado mental en el que uno decide contratarlo.
+
+### Criterios de aceptación
+- **CA-01:** Dado que hay una pista sonando, cuando scrolleo fuera de Portfolio, entonces aparece
+  un control persistente que dice qué suena y permite pausar.
+- **CA-02:** Dado que el control está visible, cuando llego al formulario, entonces **no tapa
+  ningún campo ni el botón de envío**.
+- **CA-03:** Dado que no hay nada sonando, cuando recorro el sitio, entonces el control no existe.
+
+---
+
+## HU-ANL-001 — Saber qué convierte y qué no
+
+> Como **Productor**, quiero saber cuántos visitantes llegan al formulario y cuántos abren
+> WhatsApp, para decidir cambios con datos en vez de con intuición.
+
+- Épica: Medición · Prioridad: Media · 3 SP · Valor 4
+- RF: RF-ANL-001, RNF-ANL-001 · CU: CU-ANL-001 · Ticket: ALS-023
+
+**Por qué recién ahora:** estuvo diferido a propósito desde el principio, con el argumento de que
+instrumentar sin tráfico es medir a ciegas. Ese argumento vence en el momento en que el sitio se
+publique (ALS-022) y empiece a recibir visitas reales.
+
+### Criterios de aceptación
+- **CA-01:** Dado que un visitante hace clic en un CTA, cuando reviso el panel, entonces sé si fue
+  "Agenda tu sesión" o "Cotiza tu proyecto".
+- **CA-02:** Dado que alguien envía el formulario, cuando reviso, entonces distingo envíos válidos
+  de intentos con error de validación.
+- **CA-03:** Dado que soy un visitante, cuando entro al sitio, entonces **no veo ningún banner de
+  cookies** — la medición no puede costar fricción justo antes del CTA.
+
+### Reglas de negocio
+- RN-01: sin datos personales, sin cookies, sin fingerprinting. Métricas agregadas.
+
+---
+
+## HU-VIS-001 — Que el sitio se sienta un producto cuidado
+
+> Como **visitante**, quiero que el sitio se sienta pulido en los detalles, porque si el sitio de un
+> profesional del audio se siente descuidado, me hace dudar de su trabajo.
+
+- Épica: Refinamiento · Prioridad: **Baja** · 8 SP · Valor 2
+- RNF: RNF-VIS-001 · Tickets: ALS-037 a ALS-042
+
+**Por qué es Baja pese a ser real.** El argumento —el sitio de un productor comunica su estándar de
+calidad— es cierto, pero de segundo orden: ninguno de estos ítems hace que alguien escriba que no
+iba a escribir. Van después de todo lo que sí mueve la aguja, y el primero de la lista (fotos
+reales del estudio) vale más que los otros cinco juntos.
+
+### Criterios de aceptación
+- **CA-01:** Dado que activo `prefers-reduced-motion`, cuando recorro el sitio, entonces **ningún**
+  refinamiento nuevo se mueve.
+- **CA-02:** Dado que cualquiera de estos cambios entra, cuando corro el checklist de calidad,
+  entonces el contraste y el foco visible siguen cumpliendo.
+- **CA-03:** Dado que se suma un refinamiento, cuando mido el bundle, entonces el JS inicial no
+  sube de su umbral por una mejora decorativa.
+
+---
+
 ## Documentos relacionados
 
 - [`rf-rnf-catalogo.md`](./rf-rnf-catalogo.md) — requisitos formales que estas historias satisfacen.

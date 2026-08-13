@@ -320,9 +320,11 @@ en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (cana
   seguía siendo válido — queda registrado como alternativa si la función Lambda no llega a
   justificarse en el uso real. La carga manual (opción descartada) es lo que ya existía y es
   exactamente el problema que este RF busca resolver.
-  **Límite honesto:** el handler de referencia está escrito (`aws/spotify-catalog/`), pero **no
-  desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
-  disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
+  **Límite honesto:** esta ADR fija el diseño, **no hay una sola línea escrita todavía**. Una
+  versión anterior de este documento afirmaba que el handler existía en `aws/spotify-catalog/`;
+  ese directorio nunca se creó. Queda corregido acá porque una ADR que declara trabajo inexistente
+  es peor que no tenerla: hace que el backlog mienta sobre el estado del proyecto. Ver `backlog.md`
+  ALS-026 y ALS-031 para el plan real.
 
 ### ADR-12 — Isotipo del Hero: extrusión 3D real con `3dsvg`, cargada en diferido
 

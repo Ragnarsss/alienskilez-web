@@ -40,6 +40,46 @@ Módulos: **NAV** navegación · **EST** el estudio · **SRV** servicios · **PO
 | RF-BKG-005 | BKG | Todo CTA del sitio debe conducir al mismo formulario. | Alta | Los CTA de navbar, hero, cards de servicio y cierre apuntan a `#contacto` (CP-BKG-005). | HU-BKG-001 | CU-BKG-001 | Verificado |
 | RF-SEO-001 | SEO | El sitio debe declarar título, descripción, idioma y metadatos de compartido social, incluyendo la ciudad de operación. | Media | `index.html` incluye `lang="es"`, `<title>`, `description` y Open Graph con "La Serena" (CP-SEO-001). | HU-SEO-001 | — | **Implementado** — falta `og:image` (ALS-016). |
 
+### 2.1 Requisitos propuestos (mejoras, todavía sin construir)
+
+Alcance nuevo, **no implementado**. Estado `Propuesto` significa que la capacidad está definida y
+justificada, pero nadie escribió una línea. Se separan del catálogo de arriba a propósito: mezclar
+lo que existe con lo que nos gustaría es cómo un documento de requisitos deja de servir.
+
+Módulos nuevos: **PLT** plataformas · **AUD** audio · **ANL** analítica.
+
+| ID | Mód. | Requisito funcional | Prioridad | Criterio de verificación | HU | CU | Estado |
+|---|---|---|---|---|---|---|---|
+| RF-AUD-001 | AUD | El sitio debe permitir comparar el mismo fragmento antes y después del trabajo de mezcla/máster, alternando entre las dos versiones sin cortes. | **Alta** | Un visitante alterna A/B durante la reproducción y el audio cambia manteniendo la posición; el nivel percibido está emparejado para que la diferencia sea de calidad y no de volumen (CP-AUD-001). | HU-AUD-001 | CU-AUD-001 | Propuesto |
+| RF-AUD-002 | AUD | La reproducción iniciada en el portfolio debe continuar mientras el visitante sigue recorriendo el sitio. | Media | Al scrollear fuera de Portfolio con una pista sonando, aparece un control persistente que permite pausar y saber qué suena (CP-AUD-002). | HU-AUD-002 | CU-AUD-002 | Propuesto |
+| RF-PLT-001 | PLT | El portfolio debe poder mostrar los lanzamientos reales del artista en Spotify, sin edición manual. | **Alta** | Publicar un lanzamiento nuevo en Spotify lo hace aparecer en el sitio sin tocar código ni desplegar (CP-PLT-001). | HU-PLT-001 | CU-PLT-001 | Propuesto |
+| RF-PLT-002 | PLT | El portfolio debe poder mostrar los videos recientes del canal de YouTube, sin edición manual. | Media | Igual que CP-PLT-001, con el canal de YouTube (CP-PLT-002). | HU-PLT-001 | CU-PLT-001 | Propuesto |
+| RF-PLT-003 | PLT | Si una plataforma no responde, el portfolio debe seguir mostrando el contenido curado manualmente. | **Alta** | Con la función de catálogo caída, la sección Portfolio renderiza las entradas locales y no un error ni un vacío (CP-PLT-003). | HU-PLT-001 | CU-PLT-001 | Propuesto |
+| RF-SOC-001 | SOC | Los testimonios deben poder incluir audio o video del artista, no solo texto. | Media | Un testimonio con media reproduce sin salir del sitio; uno sin media se muestra como cita, sin hueco (CP-SOC-001). | HU-TRA-001 | CU-TRA-001 | Propuesto |
+| RF-BKG-006 | BKG | El formulario debe permitir adjuntar una referencia de sonido como enlace (Spotify, YouTube, Drive). | Media | Un enlace válido viaja en el mensaje de WhatsApp; uno con formato inválido se rechaza con motivo (CP-BKG-006). | HU-BKG-002 | CU-BKG-001 | Propuesto |
+| RF-BKG-007 | BKG | Si el navegador bloquea la pestaña emergente al enviar, el sistema debe ofrecer un camino visible al chat. | **Alta** | Con emergentes bloqueadas, aparece un enlace clicable al mismo chat en vez de no pasar nada (CP-BKG-007). | HU-BKG-001 | CU-BKG-002 | Propuesto |
+| RF-ANL-001 | ANL | El sitio debe medir cuántos visitantes llegan al formulario y cuántos abren WhatsApp, por origen de CTA. | Media | El panel de analítica distingue clics de "Agenda tu sesión" y "Cotiza tu proyecto", envíos válidos y aperturas de WhatsApp (CP-ANL-001). | HU-ANL-001 | CU-ANL-001 | Propuesto |
+| RF-SEO-002 | SEO | Un enlace compartido del sitio debe previsualizarse con imagen, y el negocio debe ser interpretable como negocio local por buscadores. | Media | El depurador de compartidos de una red real muestra imagen; la herramienta de resultados enriquecidos valida el JSON-LD (CP-SEO-002). | HU-SEO-001 | — | Propuesto |
+
+**Por qué RF-AUD-001 es Alta y no una mejora estética.** Un productor vende una diferencia que se
+oye. Todo el resto del sitio —copy, cifras, testimonios— son afirmaciones *sobre* esa diferencia;
+el comparador A/B es la única pieza que deja al visitante comprobarla por sí mismo, en segundos y
+sin intermediarios. Para el objetivo del sitio, tiene más peso que cualquier refinamiento visual.
+
+### 2.2 Requisitos no funcionales propuestos
+
+| ID | Cat. | Requisito no funcional | Métrica | Umbral | Verificación | Estado |
+|---|---|---|---|---|---|---|
+| RNF-PLT-001 | RES | Toda dependencia de una plataforma externa debe degradar a contenido local, nunca romper la sección. | Secciones que quedan vacías o con error ante una plataforma caída | 0 | Simular fallo de red contra la función de catálogo (CP-PLT-003). | Propuesto |
+| RNF-SEG-002 | SEG | Ningún secreto de plataforma (client secret de Spotify/YouTube) puede viajar al navegador. | Secretos presentes en el bundle | 0 | `grep` del bundle de producción; los tokens se resuelven server-side (ADR-11). | Propuesto |
+| RNF-AUD-001 | RND | El audio del comparador y del reproductor no debe descargarse hasta que el visitante lo pida. | kB de audio en la carga inicial | 0 | Panel de red del navegador con la página recién cargada (CP-RND-002). | Propuesto |
+| RNF-VIS-001 | ACC | Todo refinamiento visual nuevo debe respetar `prefers-reduced-motion` y no degradar el contraste ni el foco visible. | Refinamientos que ignoran la preferencia o bajan el contraste | 0 | Checklist de `quality-gates.md` §4 y §5 aplicado al cambio. | Propuesto |
+| RNF-ANL-001 | SEG | La analítica no debe recolectar datos personales ni requerir banner de consentimiento. | Datos personales recolectados | 0 | Revisión de la herramienta elegida: sin cookies, sin fingerprinting, métricas agregadas. | Propuesto |
+
+**Sobre RNF-ANL-001.** Medir la conversión es útil, pero un banner de cookies en una landing es
+fricción justo antes del CTA. La restricción es deliberada: si la única forma de medir es
+degradando la experiencia, no se mide.
+
 ## 3. Catálogo de Requisitos No Funcionales
 
 Categorías: **RND** rendimiento · **ACC** accesibilidad · **MNT** mantenibilidad ·
@@ -132,7 +172,7 @@ definidos por la tabla de §2.
 - **Criterio:** CP-POR-002 — un lanzamiento nuevo en Spotify aparece en el sitio sin deploy de
   código del frontend, solo con el paso natural del tiempo (dentro del TTL de caché de la Lambda).
 - **Estado:** Aprobado, no verificado. Arquitectura decidida (ADR-11), handler de referencia en
-  `aws/spotify-catalog/`, pendiente de desplegar contra AWS real — ver ALS-026/ALS-027 de
+  sin escribir todavía (ADR-11 fija el diseño, no hay código) — ver ALS-026/ALS-027 de
   `backlog.md`.
 
 ## 5. Lo que no se pudo verificar todavía

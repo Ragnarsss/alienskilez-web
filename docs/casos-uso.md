@@ -332,6 +332,180 @@ idénticas.
 - RN-02: el número de WhatsApp vive en un solo archivo y su placeholder dispara un aviso visible en
   desarrollo.
 
+---
+
+# Casos de uso propuestos (mejoras, sin construir)
+
+Todos en estado **Propuesto**. Se documentan sus flujos de excepción con el mismo detalle que los
+implementados, porque en estas capacidades el camino de fallo es la parte difícil: dependen de
+audio, de red y de plataformas de terceros.
+
+## Diagrama de las capacidades propuestas
+
+```mermaid
+flowchart LR
+  Artista["🎤 Artista"]
+  Productor["🛠️ Productor"]
+  SP(("Spotify"))
+  YT(("YouTube"))
+  AWS(("Lambda catálogo"))
+
+  subgraph Nuevo["Alcance propuesto"]
+    UC11(["Comparar antes/después"])
+    UC12(["Seguir escuchando al recorrer"])
+    UC13(["Ver catálogo actualizado"])
+    UC14(["Consultar métricas de conversión"])
+  end
+
+  Artista --> UC11 & UC12 & UC13
+  Productor --> UC14
+  UC11 -.->|"deriva a"| Form(["Completar la solicitud"])
+  UC13 -. consulta .-> AWS
+  AWS -. lee .-> SP
+  AWS -. lee .-> YT
+```
+
+---
+
+# CU-AUD-001 — Comparar antes y después de una mezcla
+
+- Actor primario: Artista · Secundarios: ninguno
+- **Objetivo:** comprobar por sí mismo la diferencia que hace el trabajo del productor.
+- Disparador: el visitante llega a la sección de comparación y presiona reproducir.
+- Precondiciones: existe al menos un par de fragmentos autorizados.
+- Prioridad: **Alta** · HU: HU-AUD-001 · RF: RF-AUD-001 · Ticket: ALS-033 · Estado: **Propuesto**
+
+### Flujo principal
+1. El visitante llega a la sección y ve el par disponible, sin audio descargado todavía.
+2. Presiona reproducir; recién ahí se descarga el fragmento.
+3. Suena la versión "después" (la del productor).
+4. El visitante alterna a "antes".
+5. El sistema cambia la fuente **manteniendo la posición de reproducción**.
+6. El visitante alterna cuantas veces quiera y saca su conclusión.
+7. Un CTA contiguo lo lleva al formulario (CU-BKG-001).
+
+### Flujos alternos
+- **A1: varios pares disponibles.** (Paso 1) Elige cuál comparar; cambiar de par reinicia la
+  posición, porque son piezas distintas.
+- **A2: llega con el reproductor de Portfolio sonando.** (Paso 2) El sistema pausa esa pista antes
+  de arrancar la comparación — nunca dos audios simultáneos (ver CU-AUD-002 RN-02).
+
+### Flujos de excepción
+- **E1: el audio no carga.** (Paso 2) La sección informa que no se pudo cargar y ofrece reintentar.
+  No se queda con un control muerto que parece funcionar.
+- **E2: el navegador bloquea la reproducción automática.** (Paso 3) Nada suena hasta que hay un
+  gesto del usuario, que es justamente el paso 2 — por eso la reproducción **nunca** se inicia sola.
+- **E3: conexión lenta.** (Paso 2) El control muestra que está cargando; no se habilita el
+  alternado hasta que las dos versiones estén listas, para que el cambio A/B sea instantáneo.
+
+### Reglas de negocio
+- RN-01: **los niveles de las dos versiones deben estar emparejados.** Un "después" más fuerte
+  suena mejor aunque no lo sea. Publicarlo sin emparejar es el equivalente sonoro de inventar una
+  cifra (ADR-6).
+- RN-02: cada fragmento requiere autorización del artista dueño del track.
+- RN-03: fragmentos cortos (15-30 s), no tracks completos: es una demostración, no un catálogo.
+- RN-04: nada de audio en la carga inicial de la página (RNF-AUD-001).
+
+### Datos
+- Entrada: elección de par y de versión (A/B).
+- Salida: ninguna persistida. El resultado es una convicción del visitante.
+
+---
+
+# CU-AUD-002 — Seguir escuchando mientras se recorre el sitio
+
+- Actor primario: Artista
+- **Objetivo:** no tener que elegir entre escuchar el trabajo y avanzar hacia el formulario.
+- Disparador: hay una pista sonando y el visitante scrollea fuera de la sección que la originó.
+- Prioridad: Media · HU: HU-AUD-002 · RF: RF-AUD-002 · Ticket: ALS-034 · Estado: **Propuesto**
+
+### Flujo principal
+1. El visitante reproduce una pista en Portfolio.
+2. Sigue scrolleando y la sección sale del viewport.
+3. Aparece un control persistente con qué suena y un botón de pausa.
+4. La reproducción continúa mientras recorre el resto del sitio.
+5. Llega al formulario con la música sonando.
+
+### Flujos alternos
+- **A1: vuelve a Portfolio.** (Paso 3) El control persistente se retira; el de la sección vuelve a
+  ser el punto de control.
+- **A2: pausa desde el control persistente.** El control desaparece tras la pausa; no queda una
+  barra ocupando espacio sin cumplir función.
+
+### Flujos de excepción
+- **E1: el control tapa contenido en móvil.** Debe reservar su espacio o retirarse al llegar al
+  formulario. Un control flotante sobre el botón de envío costaría conversiones — sería una mejora
+  que empeora lo único que importa.
+
+### Reglas de negocio
+- RN-01: el control **nunca** obstruye el formulario ni los CTA.
+- RN-02: un solo audio a la vez en todo el sitio. Iniciar uno pausa el anterior.
+- RN-03: nada se reproduce solo. Siempre a partir de un gesto del visitante.
+
+---
+
+# CU-PLT-001 — Ver el catálogo actualizado desde las plataformas
+
+- Actor primario: Artista / Manager · Secundarios: **Spotify**, **YouTube**, función de catálogo
+- **Objetivo:** ver lo último publicado de verdad, sin que nadie edite el sitio.
+- Prioridad: **Alta** · HU: HU-PLT-001 · RF: RF-PLT-001…003
+- Tickets: ALS-026, ALS-027, ALS-031 · Estado: **Propuesto** — sin código (ADR-11)
+
+### Flujo principal
+1. El visitante llega a Portfolio.
+2. El sitio muestra de inmediato las entradas curadas manualmente.
+3. En paralelo consulta la función de catálogo.
+4. La función devuelve los lanzamientos recientes (respondiendo de su caché si está vigente).
+5. El sitio suma esas entradas a las curadas, sin reemplazarlas.
+
+### Flujos alternos
+- **A1: caché vigente.** (Paso 4) La función responde sin llamar a la plataforma — es lo que evita
+  agotar la cuota y lo que hace que la latencia sea razonable.
+- **A2: el artista no tiene lanzamientos todavía.** (Paso 4) Devuelve lista vacía; la sección
+  muestra solo lo curado, sin mensajes de error.
+
+### Flujos de excepción
+- **E1: la plataforma no responde o la función está caída.** (Paso 3-4) La sección **se queda con
+  lo curado**. Sin error visible, sin sección vacía. Es la regla de ADR-6 aplicada a una
+  dependencia de red: la ausencia degrada, no rompe.
+- **E2: la respuesta tarda.** (Paso 3) Se muestra un esqueleto con la forma del contenido, para no
+  generar salto de layout cuando llegue.
+- **E3: credenciales inválidas o vencidas.** (Paso 4) Idéntico a E1 desde el punto de vista del
+  visitante. El detalle queda en los logs de la función, nunca en pantalla.
+
+### Reglas de negocio
+- RN-01: **la curaduría manual no se borra.** La API aporta novedad; la curaduría aporta criterio —
+  el último lanzamiento no es necesariamente el mejor trabajo.
+- RN-02: **ningún secreto en el navegador** (RNF-SEG-002). Es la única razón por la que este sitio,
+  estático en todo lo demás, necesita una función serverless.
+- RN-03: la función es de solo lectura y no recibe datos del visitante.
+
+---
+
+# CU-ANL-001 — Consultar las métricas de conversión
+
+- Actor primario: **Productor**
+- **Objetivo:** decidir cambios con datos en vez de intuición.
+- Prioridad: Media · HU: HU-ANL-001 · RF: RF-ANL-001 · Ticket: ALS-023 · Estado: **Propuesto**
+
+### Flujo principal
+1. El Productor abre el panel de la herramienta de analítica.
+2. Consulta el embudo: visitas → clics en CTA → envíos válidos → aperturas de WhatsApp.
+3. Compara el rendimiento de "Agenda tu sesión" contra "Cotiza tu proyecto".
+4. Decide qué ajustar.
+
+### Flujos alternos
+- **A1: sin tráfico suficiente.** (Paso 2) Los números no son concluyentes. Es la razón por la que
+  esto estuvo diferido: instrumentar antes de tener visitas es medir ruido.
+
+### Reglas de negocio
+- RN-01: sin datos personales, sin cookies, sin fingerprinting. Métricas agregadas.
+- RN-02: **ningún banner de consentimiento.** Si la única forma de medir es poner fricción justo
+  antes del CTA, no se mide (RNF-ANL-001).
+- RN-03: la analítica no puede sumar peso bloqueante al primer render.
+
+---
+
 ## Documentos relacionados
 
 - [`historias-usuario.md`](./historias-usuario.md) — historias que agrupan estos casos de uso.

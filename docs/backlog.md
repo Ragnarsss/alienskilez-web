@@ -248,12 +248,15 @@ de AWS, credenciales que este entorno no tiene.
 
 ### ALS-026 — Integración directa con Spotify del artista (Lambda)
 
-- Prioridad: **P1** · Esfuerzo: M · Estado: **Parcialmente hecho** — handler de referencia escrito,
-  sin desplegar
+- Prioridad: **P1** · Esfuerzo: M · Estado: **Pendiente** — diseño cerrado, sin código
 
 Decisión cerrada (ADR-11): función AWS Lambda con Function URL, secretos en Secrets Manager, CORS
-restringido, caché en memoria con TTL. El handler de referencia vive en
-[`aws/spotify-catalog/`](../aws/spotify-catalog/README.md).
+restringido, caché en memoria con TTL.
+
+> **Corrección de estado (2026-08-13).** Este ticket estuvo marcado "parcialmente hecho, handler de
+> referencia escrito" y enlazaba a `aws/spotify-catalog/`. **Ese directorio nunca existió.** No hay
+> código escrito para esta integración. Se corrige porque un backlog que declara trabajo
+> inexistente deja de servir para lo único que sirve: saber qué falta.
 
 **Lo que falta, en orden:**
 
@@ -268,9 +271,9 @@ restringido, caché en memoria con TTL. El handler de referencia vive en
    bundle, así que necesita su propio skeleton (mismo criterio de "degradar, no romper" de ADR-6,
    aplicado a un estado "cargando" en vez de a un dato pendiente).
 
-**Límite honesto de esta sesión:** sin credenciales de AWS ni el Artist ID real, los pasos 1 a 4 no
-se pueden ejecutar ni verificar acá. El handler está escrito y su forma de entrada/salida
-documentada, pero **no probado contra Spotify real**.
+**Límite honesto:** sin credenciales de AWS ni el Artist ID real, los pasos 1 a 4 no se pueden
+ejecutar ni verificar. El paso 0 —escribir el handler— sí se puede hacer en cualquier momento y es
+lo único que no depende del Productor.
 
 ### ALS-027 — Integración con YouTube (mismo patrón que ALS-026)
 
@@ -470,14 +473,185 @@ completo.
 
 ---
 
+---
+
+## Épica H — Prueba de calidad (funcional)
+
+Mejoras propuestas que atacan el mismo cuello de botella: **hoy el sitio afirma que el productor es
+bueno, pero no deja comprobarlo.** Copy, cifras y testimonios son todos testimonio de parte. Estas
+piezas convierten afirmación en evidencia.
+
+Ninguna está construida. Estado `Propuesto` en todas.
+
+### ALS-033 — Comparador antes/después de mezcla
+
+- Prioridad: **P1** · Esfuerzo: L · Estado: Propuesto
+- HU-AUD-001 · CU-AUD-001 · RF-AUD-001, RNF-AUD-001
+
+Reproductor que alterna entre el mismo fragmento sin procesar y ya mezclado/masterizado,
+manteniendo la posición al cambiar.
+
+**Es la mejora de mayor impacto de todo el backlog.** Un productor vende una diferencia audible, y
+esta es la única pieza del sitio que deja al visitante comprobarla en diez segundos sin confiar en
+nadie. Vale más para la conversión que las seis mejoras visuales de la Épica I juntas.
+
+**Lo difícil no es el código, es el material:** hacen falta pares de fragmentos con autorización
+del artista dueño, y **con los niveles emparejados**. Un "después" más fuerte suena mejor aunque no
+lo sea; publicarlo sin emparejar sería el equivalente sonoro de inventar una cifra (ADR-6).
+
+**Criterios:** alternar mantiene la posición; cero audio descargado hasta que el visitante lo pida;
+fragmentos de 15-30 s; niveles emparejados; un fallo de carga informa y ofrece reintentar en vez de
+dejar un control muerto.
+
+### ALS-034 — Reproductor persistente al scrollear
+
+- Prioridad: P2 · Esfuerzo: M · Estado: Propuesto — depende de ALS-033
+- HU-AUD-002 · CU-AUD-002 · RF-AUD-002
+
+Control flotante que aparece cuando hay audio sonando y el visitante deja la sección de origen.
+
+**Por qué mueve la aguja:** hoy escuchar y avanzar compiten entre sí. Si el audio sobrevive al
+scroll, el visitante puede llegar al formulario **con la música del productor sonando** — que es
+exactamente el estado en el que uno decide contratarlo.
+
+**Riesgo a vigilar:** un control flotante que tape el botón de envío en móvil costaría
+conversiones. Sería una mejora que empeora lo único que importa. El criterio de aceptación lo
+prohíbe explícitamente.
+
+**Criterios:** un solo audio a la vez en todo el sitio; el control no obstruye formulario ni CTA;
+desaparece al pausar; nada se reproduce sin gesto del visitante.
+
+### ALS-035 — Testimonios en audio o video
+
+- Prioridad: P2 · Esfuerzo: M · Estado: Propuesto — depende de ALS-005
+- RF-SOC-001
+
+Un testimonio en la voz del artista pesa más que el mismo texto entrecomillado, y para un negocio
+de audio es coherente con el producto.
+
+**Criterios:** un testimonio con media reproduce sin salir del sitio; uno sin media se muestra como
+cita, sin hueco; misma regla de autorización que el texto.
+
+### ALS-036 — Referencia de sonido en el formulario
+
+- Prioridad: P2 · Esfuerzo: S · Estado: Propuesto
+- HU-BKG-002 · CU-BKG-001 · RF-BKG-006
+
+Campo opcional para pegar un enlace (Spotify, YouTube, Drive) como referencia de lo que el artista
+busca. "Quiero que suene tipo X" es como los artistas explican realmente lo que quieren.
+
+**Es el ticket con mejor relación impacto/esfuerzo de esta épica:** un campo, una validación de URL
+en el schema y una línea más en `buildWhatsAppMessage()`. Mejora la calidad del lead y le ahorra al
+Productor una ronda completa de repreguntas.
+
+**Criterios:** un enlace válido viaja en el mensaje como línea propia; uno inválido se rechaza con
+motivo; vacío se omite.
+
+### ALS-018 — Fallback si el navegador bloquea la pestaña *(ya existía, se promueve)*
+
+- Prioridad: **P1** (sube desde P2) · Esfuerzo: S · Estado: Pendiente
+- RF-BKG-007 · CU-BKG-002 E2
+
+Sube de prioridad porque es el **único punto del embudo donde una falla es invisible y total**: el
+visitante completa el formulario, hace clic, no pasa nada, y se va creyendo que envió algo.
+
+**Criterios:** con emergentes bloqueadas aparece un enlace clicable al mismo chat.
+
+---
+
+## Épica I — Refinamiento visual (estético)
+
+Mejoras de acabado. Todas **P3 salvo la primera**, y con una advertencia honesta: ninguna de estas
+hace que alguien escriba que no iba a escribir. El argumento a favor —el sitio de un profesional
+del audio comunica su estándar de calidad— es real pero de segundo orden.
+
+Van después de la Épica H completa. Si hay que elegir, ALS-037 vale más que las otras cinco juntas.
+
+### ALS-037 — Fotos reales del estudio y de sesiones
+
+- Prioridad: **P2** · Esfuerzo: S (código) · Estado: Pendiente — bloqueado por ALS-006
+- HU-EST-001
+
+El sitio habla de una sala y de sesiones dirigidas, y no muestra ninguna. Una foto real del espacio
+hace más por la credibilidad que cualquier animación.
+
+**Es la única de esta épica que no es decoración:** cambia lo que el visitante *sabe*, no cómo se
+siente. Bloqueado por que el Productor tome las fotos.
+
+**Criterios:** imágenes optimizadas (WebP/AVIF) con `loading="lazy"` y dimensiones declaradas para
+no generar CLS.
+
+### ALS-038 — Waveform reactivo en el Hero
+
+- Prioridad: P3 · Esfuerzo: M · Estado: Propuesto
+
+Onda de audio animada como motivo gráfico del Hero. Encaja con la identidad y con el rubro mejor
+que el starfield genérico.
+
+**Advertencia:** si se hace reactivo a audio real necesita Web Audio API y un gesto del usuario
+para arrancar. Una versión puramente decorativa (SVG animado, sin audio) da el 80% del efecto a una
+fracción del costo. Empezar por ahí.
+
+### ALS-039 — Transición cinematográfica entre secciones
+
+- Prioridad: P3 · Esfuerzo: M · Estado: Propuesto
+
+Hoy las secciones aparecen con scroll-reveal individual. Una transición que las encadene reforzaría
+la sensación de recorrido continuo que el Hero con scroll-pin ya insinúa.
+
+**Restricción:** debe apagarse completa con `prefers-reduced-motion` (RNF-VIS-001, ADR-13).
+
+### ALS-040 — Indicador de progreso y navegación por secciones
+
+- Prioridad: P3 · Esfuerzo: S · Estado: Propuesto
+
+Barra o marcadores laterales que muestren dónde está el visitante en el recorrido. En un one-pager
+largo, saber cuánto falta reduce el abandono.
+
+### ALS-041 — Preloader de marca
+
+- Prioridad: P3 · Esfuerzo: S · Estado: Propuesto
+
+**Ojo con este:** un preloader *agrega* tiempo percibido a cambio de una impresión de marca.
+En una landing de conversión suele ser mala idea. Solo tiene sentido si Lighthouse (ALS-019) muestra
+que el sitio ya tarda lo suficiente como para que un preloader mejore la percepción en vez de
+empeorarla. **No hacerlo por gusto.**
+
+### ALS-042 — Cursor personalizado
+
+- Prioridad: P3 · Esfuerzo: S · Estado: Propuesto
+
+Cursor con la identidad del sitio. Riesgos conocidos: puede degradar la usabilidad, no aplica en
+táctil, y si tapa el cursor nativo en campos de formulario es directamente un problema. Solo con
+`@media (pointer: fine)` y sin tocar el formulario.
+
+---
+
+## Épica J — Medición
+
+### ALS-023 — Analítica de conversión *(sale de diferidos)*
+
+- Prioridad: P2 · Esfuerzo: S · Estado: Propuesto — se activa después de ALS-022
+- HU-ANL-001 · CU-ANL-001 · RF-ANL-001, RNF-ANL-001
+
+Estuvo diferido con un buen argumento: instrumentar sin tráfico es medir ruido. **Ese argumento
+vence el día que el sitio se publique.**
+
+Qué medir: visitas → clics por CTA (distinguiendo "Agenda tu sesión" de "Cotiza tu proyecto") →
+envíos válidos → aperturas de WhatsApp.
+
+**Restricción dura:** sin cookies, sin datos personales, **sin banner de consentimiento**. Un
+banner en una landing es fricción justo antes del CTA. Si la única forma de medir es degradando la
+experiencia, no se mide.
+
+**Además desbloquea decisiones que hoy están trabadas:** ALS-024 (si el chunk 3D de 320 kB se
+justifica) y ALS-041 (si un preloader mejora o empeora).
+
+---
+
 ## 3. Diferido a propósito
 
 Decisiones conscientes, no olvidos. Justificación en [`architecture.md`](./architecture.md) §7.
-
-### ALS-023 — Analítica de conversión
-
-Hoy no se sabe cuántos visitantes llegan al formulario ni cuántos abren WhatsApp. Se agrega cuando
-haya tráfico real que medir; instrumentar antes es medir a ciegas.
 
 ### ALS-024 — Reducir el peso del JavaScript
 
@@ -520,7 +694,7 @@ vista. Ver ADR-5.
 | ALS-015 | D     | P1     | L        | ✅ Hecho                           | —                                |
 | ALS-016 | E     | P1     | S        | Pendiente                          | ALS-006                          |
 | ALS-017 | E     | P2     | S        | Pendiente                          | —                                |
-| ALS-018 | E     | P2     | S        | Pendiente                          | —                                |
+| ALS-018 | E     | **P1**     | S        | Pendiente                          | —                                |
 | ALS-019 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
@@ -528,12 +702,47 @@ vista. Ver ADR-5.
 | ALS-023 | —     | —      | —        | Diferido                           | —                                |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
-| ALS-026 | G     | **P1** | M        | 🟡 Parcial — handler sin desplegar | Cuenta AWS + Artist ID + ALS-031 |
+| ALS-026 | G     | **P1** | M        | Pendiente — sin código todavía     | Cuenta AWS + Artist ID + ALS-031 |
 | ALS-027 | G     | P2     | M        | Pendiente                          | ALS-026 desplegado               |
 | ALS-028 | G     | P2     | L        | ✅ Hecho                           | Asset definitivo: ALS-006        |
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
 | ALS-031 | G     | P2     | M        | Pendiente                          | Cuenta AWS del Productor         |
+
+### Alcance propuesto (mejoras, nada construido)
+
+| ID | Épica | Prio | Esfuerzo | Qué es | Bloqueado por |
+|---|---|---|---|---|---|
+| ALS-033 | H | **P1** | L | Comparador antes/después de mezcla | Material de audio autorizado |
+| ALS-034 | H | P2 | M | Reproductor persistente al scrollear | ALS-033 |
+| ALS-035 | H | P2 | M | Testimonios en audio o video | ALS-005 |
+| ALS-036 | H | P2 | S | Referencia de sonido en el formulario | — |
+| ALS-026 | G | **P1** | M | Catálogo real desde Spotify | Cuenta AWS + Artist ID |
+| ALS-027 | G | P2 | M | Catálogo desde YouTube | ALS-026 |
+| ALS-031 | G | P2 | M | Infraestructura AWS (IaC) | Cuenta AWS |
+| ALS-037 | I | P2 | S | Fotos reales del estudio | ALS-006 (fotos) |
+| ALS-038 | I | P3 | M | Waveform reactivo en el Hero | — |
+| ALS-039 | I | P3 | M | Transición entre secciones | — |
+| ALS-040 | I | P3 | S | Indicador de progreso de scroll | — |
+| ALS-041 | I | P3 | S | Preloader de marca | ALS-019 (decidir si suma) |
+| ALS-042 | I | P3 | S | Cursor personalizado | — |
+| ALS-023 | J | P2 | S | Analítica de conversión | ALS-022 (tráfico real) |
+
+**Orden recomendado, si hay que elegir:**
+
+1. **ALS-036** — el mejor impacto por esfuerzo de todo el backlog: un campo, una validación y una
+   línea en el builder del mensaje.
+2. **ALS-018** — cierra el único punto del embudo donde una falla es invisible y total.
+3. **ALS-033** — la mejora de más impacto en términos absolutos. El código es lo fácil; conseguir
+   los pares de audio autorizados y con niveles emparejados es lo que la hace pesada.
+4. **ALS-023** — apenas haya tráfico. Desbloquea decisiones hoy trabadas (ALS-024, ALS-041).
+5. **ALS-026** — en cuanto el Productor entregue cuenta de AWS y Artist ID.
+6. **ALS-037** — en cuanto haya fotos.
+7. Todo lo demás de la Épica I, al final y sin apuro.
+
+**Una advertencia sobre la Épica I:** son seis tickets de acabado visual y ninguno hace que alguien
+escriba que no iba a escribir. Es la parte del backlog más fácil de empezar y la que menos rinde.
+Si el tiempo es escaso, ALS-037 (fotos reales) y nada más.
 
 **Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
 ALS-026, ALS-027 y ALS-031 son alcance nuevo que **mejora** el sitio pero no impide publicarlo — el sitio
