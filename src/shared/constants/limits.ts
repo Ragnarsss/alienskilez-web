@@ -28,3 +28,17 @@ export const LIMITS = {
   /** Índice máximo que sigue sumando delay de stagger — evita que la última card de una grilla larga tarde de más. */
   REVEAL_STAGGER_MAX_INDEX: 5,
 } as const
+
+/**
+ * Parámetros del isotipo 3D del Hero (HeroMark3D.tsx, ALS-028).
+ * Separados de LIMITS porque no son límites de validación sino ajustes
+ * visuales de una sola pieza — se tocan mirando el resultado, no el negocio.
+ */
+export const HERO_MARK = {
+  /** Vueltas por unidad de tiempo del giro horizontal continuo. Lento a propósito: acompaña, no distrae del copy. */
+  SPIN_SPEED: 0.35,
+  /** Profundidad de la extrusión: suficiente para leerse como volumen sin volverse un ladrillo. */
+  EXTRUSION_DEPTH: 12,
+  /** Suavizado de los bordes extruidos (0-1). */
+  SMOOTHNESS: 0.6,
+} as const

@@ -187,15 +187,6 @@
     opacity: 1;
   }
 
-  /* Escenario 3D del glyph del hero — ver HeroMark3D.tsx (ADR-12, ALS-028). */
-  .hero-mark-scene {
-    perspective: 900px;
-  }
-  .hero-mark-object {
-    transform-style: preserve-3d;
-    will-change: transform;
-  }
-
   /* CTA primario "respira" con un glow sutil — señal viva, no ruido decorativo. */
   @keyframes accent-breathe {
     0%,
