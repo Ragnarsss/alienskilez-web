@@ -187,21 +187,6 @@
     opacity: 1;
   }
 
-  /*
-   * Escena 3D del isotipo del Hero (HeroMark3D.tsx, ADR-12). El volumen sale
-   * de apilar copias del path con translateZ — `preserve-3d` es lo que hace
-   * que esas capas existan en profundidad real y no se aplasten.
-   */
-  .hero-mark-scene {
-    perspective: 1100px;
-  }
-  .hero-mark-object {
-    transform-style: preserve-3d;
-    will-change: transform;
-    /* El glow acompaña al giro y vende el neón sin costar un render extra. */
-    filter: drop-shadow(0 0 14px var(--color-accent-glow));
-  }
-
   /* CTA primario "respira" con un glow sutil — señal viva, no ruido decorativo. */
   @keyframes accent-breathe {
     0%,

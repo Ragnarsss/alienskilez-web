@@ -36,19 +36,16 @@ export const LIMITS = {
  */
 export const HERO_MARK = {
   /**
-   * Copias del path apiladas en Z para simular volumen. Más capas = borde
-   * más sólido y más nodos en el DOM; 28 es el punto donde deja de verse el
-   * "hojaldre" sin que el costo de render se note.
+   * Color del isotipo. Espejo de `--color-accent` en styles/index.css.
+   * Es la única excepción a ADR-7 y tiene motivo: Three.js pinta sobre un
+   * canvas WebGL y no resuelve `var()` — pasarle la variable da negro, en
+   * silencio. `theme.test.ts` falla si este valor deja de coincidir con el CSS.
    */
-  DEPTH_LAYERS: 28,
-  /** Grosor total (px) de la pila. Debe leerse como volumen, no como un ladrillo. */
-  DEPTH_PX: 26,
-  /** Giro automático sobre el eje vertical. Lento: acompaña, no distrae del copy. */
-  DEGREES_PER_SECOND: 26,
-  /** Grados de rotación por píxel arrastrado. */
-  DEGREES_PER_PIXEL: 0.4,
-  /** Decaimiento por frame de la inercia al soltar (0-1). */
-  INERTIA_DECAY: 0.94,
+  COLOR: "#08cb00",
+  /** Suavizado de los bordes extruidos (0-1). */
+  SMOOTHNESS: 0.6,
+  /** Velocidad del giro horizontal. Lento a propósito: acompaña, no distrae del copy. */
+  SPIN_SPEED: 0.4,
   /** Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso 0→1). */
   REVEAL_STAGE: [0.02, 0.28] as [number, number],
   /** Tramo en el que se desvanece al final del Hero, cediendo el foco a los CTA. */
