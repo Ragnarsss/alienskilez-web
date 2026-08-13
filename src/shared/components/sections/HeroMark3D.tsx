@@ -91,11 +91,16 @@ export function HeroMark3D() {
               animate={prefersReducedMotion ? "none" : "spin"}
               animateSpeed={HERO_MARK.SPIN_SPEED}
               draggable
-              // Solo cuando la escena confirma que pintó un frame se apaga el
-              // glyph plano. Si nunca llega, el plano se queda — que es la
-              // degradación correcta, no un hueco.
-              onReady={() => {
-                setIs3DReady(true)
+              // `onLoadingChange`, NO `onReady`: onReady dispara en el primer
+              // frame del canvas, que ocurre ANTES de que la geometría termine
+              // de extruirse (la extrusión es asíncrona, con yields al main
+              // thread). Usarlo apagaba el glyph plano cuando todavía no había
+              // nada 3D que mostrar — se veía el alien un segundo y se iba.
+              //
+              // onLoadingChange sí está atado a la extrusión: emite
+              // (false, 100) recién cuando la geometría está lista.
+              onLoadingChange={(loading, progress) => {
+                if (!loading && progress >= 100) setIs3DReady(true)
               }}
             />
           </Suspense>
