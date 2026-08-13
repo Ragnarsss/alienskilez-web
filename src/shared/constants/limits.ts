@@ -41,4 +41,14 @@ export const HERO_MARK = {
   EXTRUSION_DEPTH: 12,
   /** Suavizado de los bordes extruidos (0-1). */
   SMOOTHNESS: 0.6,
+  /** Encuadre del isotipo dentro de su canvas. */
+  ZOOM: 1.15,
+  /** Luz direccional: alta porque el entorno de 3dsvg es casi negro y no aporta rebote. */
+  LIGHT_INTENSITY: 2.2,
+  /** Ambiente: suficiente para que las caras en sombra no queden en negro puro. */
+  AMBIENT_INTENSITY: 0.7,
+  /** Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso 0→1). */
+  REVEAL_STAGE: [0.02, 0.28] as [number, number],
+  /** Tramo en el que se desvanece al final del Hero, cediendo el foco a los CTA. */
+  FADE_OUT_STAGE: [0.72, 0.95] as [number, number],
 } as const

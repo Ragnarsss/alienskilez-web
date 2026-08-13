@@ -7,7 +7,7 @@ import { HeroMark3D } from "@/shared/components/sections/HeroMark3D"
 import { HeroSkyScene } from "@/shared/components/sections/HeroSkyScene"
 import { Kicker } from "@/shared/components/ui/Kicker"
 import { CTA } from "@/shared/constants/content"
-import { LIMITS } from "@/shared/constants/limits"
+import { HERO_MARK, LIMITS } from "@/shared/constants/limits"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import { SITE } from "@/shared/constants/site"
 import { useMouseAura } from "@/shared/hooks/useMouseAura"
@@ -88,6 +88,29 @@ export function Hero() {
   const buttonsAnimatedY = useTransform(scrollYProgress, BUTTONS_STAGE, [16, 0])
   const finePrintAnimatedOpacity = useTransform(scrollYProgress, FINE_PRINT_STAGE, [0, 1])
   const buttonsRevealed = useMotionValueThreshold(buttonsAnimatedOpacity, 0.05) || prefersReducedMotion
+
+  // El isotipo entra al principio del pin y se retira al final: aparece como
+  // si la nave se acercara, y cede el protagonismo cuando salen los CTA.
+  // Los cuatro tramos se encadenan sobre el mismo scrollYProgress, así que
+  // basta un keyframe compartido para que entrada y salida no se pisen.
+  const markAnimatedOpacity = useTransform(
+    scrollYProgress,
+    [...HERO_MARK.REVEAL_STAGE, ...HERO_MARK.FADE_OUT_STAGE],
+    [0, 1, 1, 0],
+  )
+  const markAnimatedScale = useTransform(
+    scrollYProgress,
+    [...HERO_MARK.REVEAL_STAGE, ...HERO_MARK.FADE_OUT_STAGE],
+    [0.75, 1, 1, 0.9],
+  )
+  const markAnimatedY = useTransform(scrollYProgress, HERO_MARK.REVEAL_STAGE, [40, 0])
+  // La pista de interacción llega después del isotipo: primero se ve, después
+  // se descubre que se puede tocar.
+  const markHintAnimatedOpacity = useTransform(
+    scrollYProgress,
+    [HERO_MARK.REVEAL_STAGE[1], ...HERO_MARK.FADE_OUT_STAGE],
+    [0, 1, 0],
+  )
 
   return (
     <section
@@ -247,16 +270,23 @@ export function Hero() {
               </motion.p>
             </motion.div>
 
+            {/* El isotipo entra con el scroll (como si la nave se acercara) y se
+                retira al final del pin, para que el foco quede en los CTA. */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, ease: "easeOut", delay: 0.15 }}
+              style={{
+                opacity: prefersReducedMotion ? 1 : markAnimatedOpacity,
+                scale: prefersReducedMotion ? 1 : markAnimatedScale,
+                y: prefersReducedMotion ? 0 : markAnimatedY,
+              }}
               className="flex flex-col items-center"
             >
               <HeroMark3D />
-              <p className="mt-4 font-mono text-[0.6875rem] tracking-[0.2em] text-text-muted/60 uppercase">
+              <motion.p
+                style={{ opacity: prefersReducedMotion ? 1 : markHintAnimatedOpacity }}
+                className="mt-4 font-mono text-[0.6875rem] tracking-[0.2em] text-text-muted/60 uppercase"
+              >
                 Arrastra para girar
-              </p>
+              </motion.p>
             </motion.div>
           </div>
         </Container>
