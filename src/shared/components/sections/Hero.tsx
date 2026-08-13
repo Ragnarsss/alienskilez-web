@@ -93,17 +93,20 @@ export function Hero() {
   // si la nave se acercara, y cede el protagonismo cuando salen los CTA.
   // Los cuatro tramos se encadenan sobre el mismo scrollYProgress, así que
   // basta un keyframe compartido para que entrada y salida no se pisen.
+  // Arranca en 0.35, no en 0: al cargar la página el visitante ya lo ve, y
+  // el scroll lo termina de traer. Con 0 quedaba invisible justo en el primer
+  // pantallazo, que es cuando más importa que la marca esté.
   const markAnimatedOpacity = useTransform(
     scrollYProgress,
     [...HERO_MARK.REVEAL_STAGE, ...HERO_MARK.FADE_OUT_STAGE],
-    [0, 1, 1, 0],
+    [0.35, 1, 1, 0],
   )
   const markAnimatedScale = useTransform(
     scrollYProgress,
     [...HERO_MARK.REVEAL_STAGE, ...HERO_MARK.FADE_OUT_STAGE],
-    [0.75, 1, 1, 0.9],
+    [0.88, 1, 1, 0.9],
   )
-  const markAnimatedY = useTransform(scrollYProgress, HERO_MARK.REVEAL_STAGE, [40, 0])
+  const markAnimatedY = useTransform(scrollYProgress, HERO_MARK.REVEAL_STAGE, [24, 0])
   // La pista de interacción llega después del isotipo: primero se ve, después
   // se descubre que se puede tocar.
   const markHintAnimatedOpacity = useTransform(

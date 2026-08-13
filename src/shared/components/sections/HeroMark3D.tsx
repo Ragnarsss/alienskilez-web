@@ -25,9 +25,14 @@ export function HeroMark3D() {
   const prefersReducedMotion = usePrefersReducedMotion()
 
   return (
+    // El tamaño explícito NO es cosmético: los defaults de <SVG3D> son
+    // width/height "100%", así que sobre un padre de altura automática el
+    // canvas mide 0px y no se ve nada — sin ningún error en consola. Fue
+    // exactamente el bug que dejó el hero vacío.
+    //
     // Decorativo: el giro es estético y el contenido real del hero vive en el
     // texto contiguo. No tiene equivalente de teclado a propósito.
-    <div aria-hidden="true">
+    <div className="h-56 w-56 sm:h-72 sm:w-72 lg:h-80 lg:w-80" aria-hidden="true">
       <Suspense fallback={null}>
         <SVG3D
           svg={alienGlyph}
