@@ -35,18 +35,20 @@ export const LIMITS = {
  * visuales de una sola pieza — se tocan mirando el resultado, no el negocio.
  */
 export const HERO_MARK = {
-  /** Vueltas por unidad de tiempo del giro horizontal continuo. Lento a propósito: acompaña, no distrae del copy. */
-  SPIN_SPEED: 0.35,
-  /** Profundidad de la extrusión: suficiente para leerse como volumen sin volverse un ladrillo. */
-  EXTRUSION_DEPTH: 12,
-  /** Suavizado de los bordes extruidos (0-1). */
-  SMOOTHNESS: 0.6,
-  /** Encuadre del isotipo dentro de su canvas. */
-  ZOOM: 1.15,
-  /** Luz direccional: alta porque el entorno de 3dsvg es casi negro y no aporta rebote. */
-  LIGHT_INTENSITY: 2.2,
-  /** Ambiente: suficiente para que las caras en sombra no queden en negro puro. */
-  AMBIENT_INTENSITY: 0.7,
+  /**
+   * Copias del path apiladas en Z para simular volumen. Más capas = borde
+   * más sólido y más nodos en el DOM; 28 es el punto donde deja de verse el
+   * "hojaldre" sin que el costo de render se note.
+   */
+  DEPTH_LAYERS: 28,
+  /** Grosor total (px) de la pila. Debe leerse como volumen, no como un ladrillo. */
+  DEPTH_PX: 26,
+  /** Giro automático sobre el eje vertical. Lento: acompaña, no distrae del copy. */
+  DEGREES_PER_SECOND: 26,
+  /** Grados de rotación por píxel arrastrado. */
+  DEGREES_PER_PIXEL: 0.4,
+  /** Decaimiento por frame de la inercia al soltar (0-1). */
+  INERTIA_DECAY: 0.94,
   /** Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso 0→1). */
   REVEAL_STAGE: [0.02, 0.28] as [number, number],
   /** Tramo en el que se desvanece al final del Hero, cediendo el foco a los CTA. */

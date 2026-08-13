@@ -284,38 +284,40 @@ guarda igual en Secrets Manager, nunca en el bundle.
 **Bloqueado por:** que ALS-026 esté desplegado y probado primero — no tiene sentido resolver el
 patrón dos veces en paralelo.
 
-### ALS-028 — Hero: isotipo 3D giratorio
+### ALS-028 — Hero: isotipo giratorio con volumen
 
 - Prioridad: P2 · Esfuerzo: L · Estado: **Hecho** — asset definitivo pendiente (ALS-006)
 
-Implementado con `3dsvg` (Three.js + fiber + drei) según ADR-12: el glyph del alien se **extruye a
-geometría 3D real** y gira de forma continua sobre su eje vertical, con `draggable` para que el
-visitante pueda tomarlo y girarlo a mano.
+El isotipo del alien gira de forma continua sobre su eje vertical y el visitante puede tomarlo y
+girarlo a mano, con inercia al soltar.
 
-**Cambio de rumbo respecto al plan original, y por qué.** La primera versión resolvía esto con CSS
-3D y ADR-12 argumentaba explícitamente que sumar Three.js sería sobre-ingeniería. Cuando el
-requisito pasó de "rota al arrastrar" a "**gira infinitamente**", ese razonamiento dejó de
-aplicar: un SVG es plano, y girando sin parar queda de canto y desaparece dos veces por vuelta.
-Girar continuo exige volumen real. El código CSS-3D (`useDraggableRotation`, clases
-`.hero-mark-scene`/`.hero-mark-object`) se **eliminó** en vez de dejarse muerto — `draggable` de
-`3dsvg` cubre el arrastre.
+**Se resolvió tres veces.** Vale la pena que quede el registro, porque el recorrido explica la
+solución actual mejor que la solución sola:
 
-**El costo, medido:** el motor 3D pesa 319.63 kB gzip, más del doble que el resto del sitio. Va en
-un chunk diferido (`lazy()` + `<Suspense>`), así que el bundle inicial solo subió 1.25 kB. Ver
-`quality-gates.md` §2 — está contenido, no resuelto.
+1. **CSS 3D con arrastre.** Correcto para el requisito original. Se cayó cuando el requisito pasó
+   a giro **continuo**: un SVG plano girando en Y desaparece de canto dos veces por vuelta.
+2. **`3dsvg` sobre Three.js.** Extruía geometría real y resolvía el problema en el papel. Nunca se
+   vio en pantalla. La primera causa fue un error de material (`chrome` es un espejo y reflejaba un
+   entorno negro sobre fondo negro); corregido a `emissive`, **siguió sin aparecer**. A esa altura
+   el diagnóstico era imposible: una caja negra sobre WebGL, sin navegador en el entorno para
+   inspeccionarla, y 320 kB gzip de costo.
+3. **Capas apiladas en CSS (actual).** 28 copias del path a profundidades crecientes con
+   `translateZ` dentro de un `preserve-3d`. Rotando se lee como un objeto sólido; un gradiente de
+   `brightness` por capa evita el aspecto de láminas.
 
-**Punto de reemplazo del asset:** `src/assets/alien-glyph.svg`. Es un SVG normal; cambiarlo por el
-isotipo definitivo cuando exista (ALS-006) no requiere tocar código.
+**Lo que se ganó al descartar WebGL:** 320 kB gzip menos (~477 → ~158 kB de JS total), cero
+dependencias nuevas, funciona sin GPU, y el color vuelve a salir del token CSS — lo que permitió
+eliminar `shared/constants/theme.ts` y su test, y dejar ADR-7 **sin excepciones**.
 
-**Restricción heredada:** Three.js no lee `var(--color-accent)`, así que el color sale de
-`shared/constants/theme.ts` (literal), con un test que falla si se desincroniza del CSS. Es la
-única excepción a ADR-7.
+**Punto de reemplazo del asset:** `src/assets/alien-glyph.svg`. El componente extrae de ahí el
+`d`, el `viewBox` y el `fill-rule`, así que cambiar el isotipo no requiere tocar código.
 
-**Criterios verificados:** gira solo al cargar; se puede arrastrar; con `prefers-reduced-motion`
-no gira ni hace intro; `lint`, `test` (25) y `build` limpios; el chunk 3D sale separado del
-bundle inicial.
-**Sin verificar:** el render visual real en navegador — este entorno no tiene automatización de
-browser. Queda a confirmación del Productor.
+**Integración con el scroll:** el isotipo entra en el primer tramo del scroll-pin y se retira al
+final, cediendo el foco a los CTA (`HERO_MARK.REVEAL_STAGE` / `FADE_OUT_STAGE`).
+
+**Criterios verificados:** `lint`, `test` (24) y `build` limpios; un solo chunk, sin bundle 3D;
+el path y el `fill-rule` se extraen correctamente del archivo (3 subpaths — cabeza + 2 ojos).
+**Sin verificar:** el render visual — este entorno no tiene navegador. A confirmación del Productor.
 
 ### ALS-029 — Hero: aura que sigue al mouse
 
@@ -478,20 +480,15 @@ haya tráfico real que medir; instrumentar antes es medir a ciegas.
 
 ### ALS-024 — Reducir el peso del JavaScript
 
-Actualizado tras ALS-028. Hoy son dos problemas distintos, no uno:
+Actualizado tras resolver ALS-028 sin WebGL. El chunk de 320 kB que este ticket señalaba **ya no
+existe**: se eliminó al reemplazar Three.js por capas CSS, no optimizándolo.
 
-| Qué | Gzip | Bloquea el render | Candidato a recortar |
-|---|---|---|---|
-| Bundle inicial | 157 kB | Sí | Framer Motion (el uso es scroll-reveal simple, se puede hacer con IntersectionObserver) |
-| Chunk 3D | 320 kB | No (diferido) | El isotipo giratorio entero |
+Queda un solo frente: el bundle inicial de **157 kB gzip**, que excede el umbral verde de 150
+(`quality-gates.md` §2). El candidato más gordo es Framer Motion — el uso actual (scroll-reveal,
+paralaje del Hero, contadores de Alcance) es sustituible por IntersectionObserver + CSS, pero es
+un refactor grande y hoy no hay evidencia de que haga falta.
 
-El bundle inicial **ya pasó el umbral verde de 150 kB** (`quality-gates.md` §2). El chunk 3D pesa
-el doble que todo el resto junto para un elemento decorativo.
-
-La pregunta a responder con datos de ALS-019 no es "cómo optimizamos el 3D" sino **"¿el alien
-giratorio justifica 320 kB para un visitante en datos móviles?"**. Si la respuesta es no, la
-alternativa barata es un render estático del isotipo (PNG/WebP con transparencia) y guardar el
-WebGL solo para escritorio. Se decide con el Lighthouse en la mano, no antes.
+Se decide con el Lighthouse de ALS-019 en la mano. Optimizar sin medir es adivinar.
 
 ### ALS-025 — Preselección del servicio desde las cards
 

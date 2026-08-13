@@ -21,26 +21,23 @@ consciente, ver `architecture.md` §7): los corre quien mergea.
 
 ## 2. Rendimiento
 
-### Línea base medida (2026-08-12, tras ALS-028)
+### Línea base medida (2026-08-12, tras ALS-028 en su versión CSS)
 
 | Artefacto | Crudo | Gzip | Cuándo se descarga |
 |---|---|---|---|
 | `index.html` | 1.64 kB | 0.69 kB | Siempre |
-| CSS | 35.06 kB | 7.36 kB | Siempre |
-| **JS inicial** | 496.10 kB | **157.10 kB** | Siempre |
-| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** | En diferido, solo para el isotipo del Hero |
+| CSS | 35.66 kB | 7.51 kB | Siempre |
+| **JS** | 499.97 kB | **157.60 kB** | Siempre |
 
-**Lectura honesta:** el JS inicial creció de 139 a 157 kB gzip (React, Framer Motion, Lenis, zod,
-react-hook-form) y **ya excede el umbral verde de 150 kB**. Está en amarillo, no en rojo, y es
-consciente.
+**Un solo chunk.** Hubo brevemente un segundo chunk de 319.63 kB gzip (Three.js + fiber + drei)
+para el isotipo 3D del Hero; se eliminó al resolver ese efecto con capas CSS (ADR-12). El total a
+descargar pasó de ~477 kB a ~158 kB — un 67% menos, sin perder el efecto.
 
-El chunk 3D es el dato incómodo: **319 kB gzip, el doble que todo el resto del sitio junto**, para
-un elemento puramente decorativo. Está aislado con `lazy()` (ADR-12), así que no bloquea el primer
-render — el texto y los CTA pintan sin esperarlo. Pero sigue siendo ancho de banda que un visitante
-en móvil con datos móviles va a gastar en un alien que gira.
-
-**Esto no está resuelto, está contenido.** La decisión de fondo —si el isotipo giratorio vale
-320 kB— se toma con los datos de ALS-019 (Lighthouse real), no antes. Ver ALS-024.
+**Lectura honesta:** 157 kB gzip **excede el umbral verde de 150 kB**. Está en amarillo y es
+consciente: lo explican React + React DOM, Framer Motion, Lenis, zod y react-hook-form. Framer
+Motion es el candidato más gordo y el uso actual (scroll-reveal, paralaje, contadores) es
+sustituible por IntersectionObserver + CSS si hiciera falta. No se toca hasta tener el Lighthouse
+de ALS-019: optimizar sin medir es adivinar.
 
 ### Umbrales
 
@@ -57,10 +54,9 @@ en móvil con datos móviles va a gastar en un alien que gira.
 | **JS diferido** (gzip, por chunk) | ≤ 200 kB | 200-350 kB | > 350 kB |
 
 > **Por qué dos umbrales de JS y no uno.** Sumar todo el JavaScript en una sola cifra trata igual a
-> lo que bloquea el primer render y a lo que se descarga después. Un chunk diferido de 300 kB
-> molesta bastante menos que 300 kB bloqueando el LCP. La fila que hay que mirar primero es la de
-> JS **inicial** — hoy en amarillo (157 kB); el chunk 3D está en amarillo alto (319 kB) y es el
-> primer candidato a recortar si Lighthouse reprueba.
+> lo que bloquea el primer render y a lo que se descarga después. Hoy no hay chunks diferidos, pero
+> el umbral queda escrito: fue justamente lo que permitió ver que un chunk de 320 kB para un
+> elemento decorativo no se justificaba, aunque técnicamente "no bloqueara nada".
 
 > **INP, no FID.** FID quedó obsoleto como Core Web Vital en marzo de 2024; `performance.md` de
 > radarop todavía lo lista. Acá se mide INP.
@@ -82,9 +78,9 @@ desarrollo no minifica y las métricas no significan nada.
 - Los `<iframe>` de portfolio llevan `loading="lazy"`, y no se renderizan si `embedUrl` está vacío.
 - Fondos decorativos en CSS puro (starfield, grid HUD): cero peso de red, cero JS.
 - Tailwind v4 emite solo las utilidades usadas.
-- **El motor 3D (Three + fiber + drei) va en un chunk diferido** vía `lazy()` + `<Suspense>` en
-  `HeroMark3D.tsx` — sin eso, el bundle inicial sería de ~477 kB gzip en vez de 157.
-- El fallback del isotipo reserva su tamaño exacto, así que su carga diferida **no genera CLS**.
+- **El isotipo 3D del Hero no usa WebGL**: son capas SVG apiladas con `translateZ` (ADR-12), lo
+  que ahorró 320 kB gzip frente a la versión con Three.js.
+- El isotipo tiene tamaño fijo por breakpoint, así que no genera CLS al montar.
 
 ### Si hay que bajar el JS
 

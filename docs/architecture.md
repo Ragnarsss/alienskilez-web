@@ -30,8 +30,8 @@ Deliberadamente más chico que un proyecto institucional. Es una decisión, no u
 - **Tailwind CSS v4** vía `@tailwindcss/vite`, CSS-first con `@theme`. Sin `tailwind.config.js`.
 - **Framer Motion** para scroll-reveal y microinteracciones, con `reducedMotion="user"`.
 - **Lenis** para el smooth scroll global (ADR-14).
-- **3dsvg** (sobre Three.js + `@react-three/fiber` + `drei`) para el isotipo giratorio del Hero —
-  **cargado en diferido**, nunca en el bundle inicial (ADR-12).
+- **Sin motor 3D.** El isotipo giratorio del Hero se resuelve con capas apiladas en CSS, no con
+  WebGL (ADR-12).
 - **react-hook-form + zod** para el único formulario real.
 - **Vitest** para la única lógica que puede fallar.
 - **ESLint flat config** + `typescript-eslint` + `eslint-plugin-react-hooks@7` (que ya incluye
@@ -241,11 +241,13 @@ escribe un color literal; todos usan la utilidad generada.
 colores de la paleta aparecen con su valor exacto.
 **Consecuencia:** un color nuevo se agrega en `@theme`, nunca como clase arbitraria
 `bg-[#08cb00]` en un componente.
-**Única excepción, acotada y vigilada (ADR-12):** `shared/constants/theme.ts` repite el valor de
-`--color-accent` como literal, porque Three.js pinta sobre un canvas WebGL y no resuelve `var()` —
-pasarle la variable da negro, en silencio. Para que la excepción no derive, `theme.test.ts` lee el
-CSS real y falla si los dos valores dejan de coincidir. Cualquier futura necesidad de un token en
-JavaScript sigue esa misma regla: literal + test que lo ate al CSS, nunca un literal suelto.
+**Sin excepciones hoy.** Hubo una brevemente: mientras el isotipo del Hero corría sobre WebGL,
+`shared/constants/theme.ts` repetía `--color-accent` como literal, porque Three.js no resuelve
+`var()`. Al volver el isotipo al DOM (ADR-12, 3ª versión) esa constante y su test se eliminaron —
+todo el color vuelve a salir del CSS.
+**Si alguna vez hace falta un token en JavaScript** (canvas, WebGL, una librería que no lea CSS),
+la regla es: literal en un módulo propio **más un test que lo ate al valor del CSS**, nunca un
+literal suelto en un componente.
 
 ### ADR-8 — `no-restricted-imports` del core en vez de `eslint-plugin-import`
 
@@ -322,49 +324,55 @@ en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (cana
   desplegado ni verificado contra AWS real** en este entorno — no hay credenciales de AWS
   disponibles acá. Ver `backlog.md` ALS-026 y ALS-031 para lo que falta.
 
-### ADR-12 — Isotipo 3D del Hero con WebGL real, cargado en diferido
+### ADR-12 — Isotipo del Hero: volumen por capas en CSS, sin WebGL
 
-> **Esta ADR reemplaza una versión anterior que decidía lo contrario.** La primera versión
-> resolvía el giro con CSS 3D (`preserve-3d` + `perspective`) y argumentaba explícitamente que
-> sumar un motor 3D sería sobre-ingeniería. Ese razonamiento era correcto **para el requisito que
-> existía entonces** — girar una pieza al arrastrarla. Dejó de serlo cuando el requisito cambió,
-> y por qué dejó de serlo está abajo. La versión vieja se conserva en el historial de git.
+> **Tercera versión de esta ADR.** Cambió dos veces y las dos veces se registró por qué. El
+> historial completo está en git; el resumen honesto es este:
+>
+> | Versión | Decisión | Qué la invalidó |
+> |---|---|---|
+> | 1ª | CSS 3D, girar al arrastrar | El requisito pasó a **giro continuo**, y un plano girando desaparece de canto |
+> | 2ª | `3dsvg` sobre Three.js | Costaba 320 kB gzip y **no renderizaba** — dos intentos fallidos sin diagnóstico posible |
+> | 3ª (esta) | Volumen por capas apiladas en CSS | — |
+>
+> Que una ADR cambie no es malo; que cambie sin dejar rastro, sí.
 
-**Contexto:** el requisito final del Hero es un isotipo que **gire continuamente sobre su eje
-vertical**, no solo que responda al arrastre. El Productor entregó el glyph como SVG plano y eligió
-`3dsvg` como herramienta.
-**Por qué CSS 3D ya no alcanza:** un SVG es una superficie plana. Con `rotateY` continuo, dos veces
-por vuelta queda de canto y **desaparece** — no tiene grosor que mostrar. Girar sin parar exige
-volumen real, y eso significa extruir la geometría del path: es exactamente lo que hace `3dsvg`
-sobre Three.js. No es que la solución anterior estuviera mal implementada; es que "rotar al
-arrastrar" y "rotar infinitamente" son requisitos con necesidades geométricas distintas.
-**Decisión:** `<SVG3D>` de `3dsvg` (Three.js + `@react-three/fiber` + `drei`), con `animate="spin"`
-para el giro continuo y `draggable` para que el visitante pueda tomarlo. El glyph vive como
-**archivo SVG real** (`src/assets/alien-glyph.svg`), importado con `?raw` — reemplazarlo por otro
-isotipo es cambiar ese archivo y nada más.
+**Contexto:** el Hero lleva el isotipo de la marca girando de forma continua sobre su eje
+vertical, y el visitante puede tomarlo y girarlo a mano. El glyph existe como SVG plano.
+**El problema geométrico:** un SVG es una superficie sin grosor. Con `rotateY` continuo queda de
+canto dos veces por vuelta y **desaparece**. Girar sin parar exige volumen real.
+**Por qué falló el intento con Three.js:** `3dsvg` extruía la geometría de verdad y resolvía el
+problema en el papel. En la práctica no se vio nunca. La primera causa fue mía —`material="chrome"`
+es metalness 1, o sea un espejo, y reflejaba un entorno casi negro sobre un fondo negro—, pero
+corregida a `emissive` el isotipo **siguió sin aparecer**, y a esa altura el diagnóstico era
+imposible: una caja negra sobre WebGL que este entorno no puede inspeccionar.
+**Decisión:** el volumen se construye apilando **28 copias del mismo path** a profundidades
+crecientes con `translateZ`, dentro de un contenedor con `transform-style: preserve-3d`. Rotando,
+la pila se lee como un objeto sólido: de canto se ve el grosor. Un gradiente de `brightness` por
+capa evita que parezca un sándwich de láminas y le da sensación de masa.
 
-**El costo, medido, no estimado:**
+**Lo que se ganó, medido:**
 
-| Chunk | Crudo | Gzip |
+| | Antes (Three.js) | Ahora (CSS) |
 |---|---|---|
-| Bundle principal | 496.10 kB | **157.10 kB** |
-| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** |
+| Bundle inicial | 157.10 kB gzip | 157.60 kB gzip |
+| Chunk extra | **319.63 kB gzip** | **ninguno** |
+| **Total a descargar** | **~477 kB** | **~158 kB** |
+| Dependencias | `3dsvg` + `three` + `fiber` + `drei` | ninguna |
+| Requiere GPU/WebGL | Sí | No |
 
-El motor 3D pesa **el doble que todo el resto del sitio junto**. Por eso no se importa de forma
-estática: `HeroMark3D` lo carga con `lazy()` + `<Suspense>`, así WebGL queda en un chunk aparte que
-**no bloquea el primer render**. El bundle inicial pasó de 155.85 a 157.10 kB gzip — 1.25 kB, el
-costo del wrapper. El texto del Hero y los CTA, que son lo que convierte, pintan sin esperar a que
-baje el motor 3D.
-**Consecuencia aceptada:** un visitante con conexión lenta ve el texto y los botones enseguida, y
-el isotipo aparece unos segundos después (con un placeholder que reserva su espacio, sin salto de
-layout). Es el orden correcto de prioridades: el alien es decorativo, el CTA no.
-**Restricción que impone WebGL:** Three.js no resuelve `var(--color-accent)` — parsea colores con
-`new THREE.Color()`, que no sabe de CSS. El color se pasa como literal desde
-`shared/constants/theme.ts`, la **única excepción** a ADR-7, con un test que falla si ese valor
-deja de coincidir con el token del CSS. La excepción está acotada y vigilada, no es una grieta.
-**Qué se revisa si el sitio necesita adelgazar:** este chunk es el primer candidato obvio (ver
-ALS-024). Si el Lighthouse de ALS-019 muestra que el LCP no cumple, la pregunta no es cómo
-optimizar el 3D sino si el alien giratorio vale 320 kB.
+**Consecuencias que se desprenden:**
+- Se eliminó `shared/constants/theme.ts` y su test: existían solo porque Three.js no resuelve
+  `var()`. En el DOM el color vuelve a salir del token, y **ADR-7 deja de tener excepciones**.
+- El glyph sigue viviendo como archivo (`src/assets/alien-glyph.svg`): el componente extrae de él
+  el `d`, el `viewBox` y el `fill-rule` en vez de asumirlos, así cambiar el isotipo no requiere
+  tocar código. El `fill-rule="evenodd"` importa: sin él los ojos del alien se rellenan en vez de
+  recortarse.
+- No es extrusión real: es una ilusión por capas. Vista muy de cerca o girada 90° exactos se nota
+  que son láminas. A la escala del Hero no se distingue, y ese es el trade que se aceptó.
+
+**Cuándo reconsiderar WebGL:** si el isotipo definitivo necesita materiales, reflejos o
+iluminación reales, o si aparece un segundo elemento 3D en el sitio. Para un objeto que gira, no.
 
 ### ADR-13 — Motion imperativo (paralaje, contadores) requiere su propio check de `prefers-reduced-motion`
 
