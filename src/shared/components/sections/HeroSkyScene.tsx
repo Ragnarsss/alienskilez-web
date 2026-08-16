@@ -1,9 +1,18 @@
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion"
-import type { CSSProperties, RefObject } from "react"
+import { motion, useReducedMotion, useTransform, type MotionValue } from "framer-motion"
+import type { CSSProperties } from "react"
 import { LIMITS } from "@/shared/constants/limits"
 
 interface HeroSkySceneProps {
-    containerRef: RefObject<HTMLElement | null>
+    /**
+     * Progreso 0→1 del scroll-pin del Hero. Se recibe en vez de recalcularse
+     * acá con un `useScroll` propio: dos `useScroll` independientes sobre el
+     * mismo target, cada uno con su propia definición de `offset`, son dos
+     * fuentes de verdad que hay que mantener sincronizadas a mano — y
+     * justo ese desincronizarse fue la causa de que el reveal del Hero se
+     * cortara antes de tiempo en mobile (ver el comentario sobre `offset`
+     * en Hero.tsx). Una sola medición en Hero.tsx, pasada hacia abajo.
+     */
+    scrollYProgress: MotionValue<number>
 }
 
 interface Star {
@@ -69,12 +78,8 @@ function StarLayer({ stars, color }: { stars: Star[]; color: string }) {
  * scroll del propio Hero, no de la página completa). Todo plano — CSS/SVG,
  * sin 3D ni librerías de partículas.
  */
-export function HeroSkyScene({ containerRef }: HeroSkySceneProps) {
+export function HeroSkyScene({ scrollYProgress }: HeroSkySceneProps) {
     const prefersReducedMotion = useReducedMotion()
-    const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ["start start", "end end"],
-    })
 
     const farY = useTransform(
         scrollYProgress,

@@ -16,6 +16,11 @@ export function useLenis(): void {
             // Ease-out exponencial: arranque rápido, frenada suave — sensación "cinematográfica".
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             anchors: true,
+            // Explícito: sin esto, Lenis solo suaviza la rueda del mouse y el
+            // scroll táctil queda 100% nativo (sin inercia propia) — con el
+            // pin del Hero, esa discontinuidad entre mouse y touch se nota.
+            smoothWheel: true,
+            syncTouch: true,
         })
 
         let animationFrameId = 0

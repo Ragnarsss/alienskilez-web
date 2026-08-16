@@ -10,6 +10,7 @@ import { CTA } from "@/shared/constants/content"
 import { HERO_MARK, LIMITS } from "@/shared/constants/limits"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import { SITE } from "@/shared/constants/site"
+import { useMeasuredHeightPx } from "@/shared/hooks/useMeasuredHeightPx"
 import { useMouseAura } from "@/shared/hooks/useMouseAura"
 import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion"
 
@@ -77,11 +78,23 @@ export function Hero() {
   const wrapperRef = useRef<HTMLElement>(null)
   const stickyRef = useRef<HTMLDivElement>(null)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const stickyHeightPx = useMeasuredHeightPx(stickyRef, !prefersReducedMotion)
   useMouseAura(stickyRef)
 
+  // "end end" (fondo del wrapper contra fondo del viewport) da progress=1 en
+  // el punto equivocado apenas el sticky es más alto que el viewport: el pin
+  // se suelta cuando el scroll dentro del wrapper llega a
+  // `wrapperHeight - stickyHeight`, y eso solo coincide con "fondo contra
+  // fondo" si stickyHeight === viewportHeight. En mobile (stack de
+  // headline+subtítulo+isotipo) casi nunca lo es, así que quedaba un tramo
+  // final del reveal reproduciéndose ya con el Hero deslizándose fuera de
+  // pantalla. `${RUNWAY}vh start` fija el progress=1 exactamente a
+  // RUNWAY vh de scroll desde el inicio del wrapper — que es, por
+  // construcción (ver `stickyHeightCss` más abajo), el mismo punto exacto en
+  // el que el sticky se suelta, sin importar cuánto mida el contenido.
   const { scrollYProgress } = useScroll({
     target: wrapperRef,
-    offset: ["start start", "end end"],
+    offset: ["start start", `${LIMITS.HERO_PIN_RUNWAY_VH}vh start`],
   })
 
   const buttonsAnimatedOpacity = useTransform(scrollYProgress, BUTTONS_STAGE, [0, 1])
@@ -89,31 +102,29 @@ export function Hero() {
   const finePrintAnimatedOpacity = useTransform(scrollYProgress, FINE_PRINT_STAGE, [0, 1])
   const buttonsRevealed = useMotionValueThreshold(buttonsAnimatedOpacity, 0.05) || prefersReducedMotion
 
-  // El isotipo entra al principio del pin y se retira al final: aparece como
-  // si la nave se acercara, y cede el protagonismo cuando salen los CTA.
-  // Los cuatro tramos se encadenan sobre el mismo scrollYProgress, así que
-  // basta un keyframe compartido para que entrada y salida no se pisen.
-  // Arranca en 0.35, no en 0: al cargar la página el visitante ya lo ve, y
-  // el scroll lo termina de traer. Con 0 quedaba invisible justo en el primer
-  // pantallazo, que es cuando más importa que la marca esté.
-  const markAnimatedOpacity = useTransform(
-    scrollYProgress,
-    [...HERO_MARK.REVEAL_STAGE, ...HERO_MARK.FADE_OUT_STAGE],
-    [0.35, 1, 1, 0],
-  )
-  const markAnimatedScale = useTransform(
-    scrollYProgress,
-    [...HERO_MARK.REVEAL_STAGE, ...HERO_MARK.FADE_OUT_STAGE],
-    [0.88, 1, 1, 0.9],
-  )
+  // El isotipo entra al principio del pin, como si la nave se acercara, y
+  // después se queda — igual que el subtítulo y los botones — hasta que el
+  // pin se suelta y el Hero se va con el scroll normal, junto con todo lo
+  // demás. Arranca en 0.35, no en 0: al cargar la página el visitante ya lo
+  // ve, y el scroll lo termina de traer. Con 0 quedaba invisible justo en
+  // el primer pantallazo, que es cuando más importa que la marca esté.
+  const markAnimatedOpacity = useTransform(scrollYProgress, HERO_MARK.REVEAL_STAGE, [0.35, 1])
+  const markAnimatedScale = useTransform(scrollYProgress, HERO_MARK.REVEAL_STAGE, [0.88, 1])
   const markAnimatedY = useTransform(scrollYProgress, HERO_MARK.REVEAL_STAGE, [24, 0])
   // La pista de interacción llega después del isotipo: primero se ve, después
-  // se descubre que se puede tocar.
+  // se descubre que se puede tocar. Igual que el mark, aparece y se queda.
   const markHintAnimatedOpacity = useTransform(
     scrollYProgress,
-    [HERO_MARK.REVEAL_STAGE[1], ...HERO_MARK.FADE_OUT_STAGE],
-    [0, 1, 0],
+    [HERO_MARK.REVEAL_STAGE[1], HERO_MARK.REVEAL_STAGE[1] + 0.08],
+    [0, 1],
   )
+
+  // Presupuesto del pin = alto REAL del sticky (medido), no un 100svh fijo:
+  // si el contenido no entra en el viewport (el stack mobile de
+  // headline+subhead+isotipo suele pasarse), el runway se ajusta para que
+  // el pin siga sosteniéndose hasta que scrollYProgress llegue a 1. Antes
+  // de la primera medición cae a 100svh como aproximación de arranque.
+  const stickyHeightCss = stickyHeightPx != null ? `${stickyHeightPx}px` : "100svh"
 
   return (
     <section
@@ -122,7 +133,7 @@ export function Hero() {
       style={
         prefersReducedMotion
           ? undefined
-          : { height: `calc(100svh + ${LIMITS.HERO_PIN_RUNWAY_VH}vh)` }
+          : { height: `calc(${stickyHeightCss} + ${LIMITS.HERO_PIN_RUNWAY_VH}vh)` }
       }
     >
       <div
@@ -135,7 +146,7 @@ export function Hero() {
         )}
       >
         {/* Cielo nocturno: tres capas de estrellas con paralaje + zoom de avance. */}
-        <HeroSkyScene containerRef={wrapperRef} />
+        <HeroSkyScene scrollYProgress={scrollYProgress} />
         <div className="mouse-aura-layer pointer-events-none absolute inset-0" aria-hidden="true" />
         <div
           className="pointer-events-none absolute top-1/3 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/8 blur-[120px]"
@@ -274,7 +285,7 @@ export function Hero() {
             </motion.div>
 
             {/* El isotipo entra con el scroll (como si la nave se acercara) y se
-                retira al final del pin, para que el foco quede en los CTA. */}
+                queda — no se retira antes de que el Hero se vaya con el scroll. */}
             <motion.div
               style={{
                 opacity: prefersReducedMotion ? 1 : markAnimatedOpacity,
@@ -287,9 +298,7 @@ export function Hero() {
               <motion.p
                 style={{ opacity: prefersReducedMotion ? 1 : markHintAnimatedOpacity }}
                 className="mt-4 font-mono text-[0.6875rem] tracking-[0.2em] text-text-muted/60 uppercase"
-              >
-                Arrastra para girar
-              </motion.p>
+              />
             </motion.div>
           </div>
         </Container>

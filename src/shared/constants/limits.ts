@@ -51,8 +51,14 @@ export const HERO_MARK = {
   SMOOTHNESS: 0.3,
   /** Velocidad del giro horizontal. Lento a propósito: acompaña, no distrae del copy. */
   SPIN_SPEED: 4,
-  /** Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso 0→1). */
+  /**
+   * Tramo del scroll-pin del Hero en el que el isotipo aparece (progreso
+   * 0→1). Una vez revelado se queda — igual que el resto del contenido del
+   * Hero (subtítulo, botones) — hasta que el pin se suelta y toda la
+   * sección se va con el scroll normal. Antes se desvanecía solo, a mitad
+   * del pin, "cediendo el foco a los CTA"; se sacó porque leía como que el
+   * isotipo se rompía o se perdía opacidad justo antes de pasar a la
+   * siguiente sección, no como una transición intencional.
+   */
   REVEAL_STAGE: [0.02, 0.28] as [number, number],
-  /** Tramo en el que se desvanece al final del Hero, cediendo el foco a los CTA. */
-  FADE_OUT_STAGE: [0.72, 0.95] as [number, number],
 } as const
