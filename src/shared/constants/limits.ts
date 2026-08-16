@@ -5,8 +5,16 @@ export const LIMITS = {
   BOOKING_MESSAGE_MAX_LENGTH: 600,
   /** Scroll en píxeles a partir del cual el navbar toma fondo sólido. */
   NAVBAR_SCROLLED_OFFSET: 24,
-  /** Duración (s) del suavizado de Lenis — cinematográfico medio, no glacial. */
-  LENIS_DURATION: 1.1,
+  /**
+   * Intensidad (0-1) del suavizado por frame de Lenis. Reemplaza al viejo
+   * `duration`+`easing` (tween a tiempo fijo): con duración fija, un scroll
+   * cortito tardaba lo mismo que uno largo, y eso se sentía raro. El `lerp`
+   * es continuo y se adapta solo a cualquier distancia — la sensación
+   * "líquida" de sitios como lenis.darkroom.engineering. Más bajo = más
+   * flotante/lento en asentarse; 0.1 es el default de la librería y un punto
+   * medio razonable entre "responsivo" y "con inercia real".
+   */
+  LENIS_LERP: 0.1,
   /** Paralaje vertical (px) de la capa de estrellas lejana del Hero. */
   HERO_PARALLAX_FAR_PX: 130,
   /** Paralaje vertical (px) de la capa de estrellas media del Hero. */

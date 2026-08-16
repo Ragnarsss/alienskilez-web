@@ -18,9 +18,12 @@ export default function App() {
   useLenis()
 
   return (
-    // reducedMotion="user" desactiva las animaciones de Framer Motion cuando
-    // el sistema pide prefers-reduced-motion.
-    <MotionConfig reducedMotion="user">
+    // "never": el movimiento del sitio corre siempre, sin importar
+    // prefers-reduced-motion. Mismo criterio que useLenis.ts (ver ahí el
+    // porqué) -- si uno de los dos sistemas de animación respetara la
+    // preferencia y el otro no, quedaría una mezcla rara de scroll suave con
+    // animaciones instantáneas, o viceversa.
+    <MotionConfig reducedMotion="never">
       <Preloader />
 
       <a

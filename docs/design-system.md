@@ -126,9 +126,9 @@ paralaje de ambos componentes está ligado al progreso de scroll del propio Hero
 
 ## 6. Movimiento
 
-- Scroll suave global vía **Lenis** (`shared/hooks/useLenis.ts`), calibrado a un perfil
-  "cinematográfico medio": `duration` y `easing` en vez del `lerp` por defecto — arranque rápido,
-  frenada suave. Constantes en `LIMITS.LENIS_DURATION`.
+- Scroll suave global vía **Lenis** (`shared/hooks/useLenis.ts`), con `lerp` continuo (suavizado
+  por frame, se adapta solo a la distancia scrolleada) en vez de un tween a `duration` fija.
+  Constante en `LIMITS.LENIS_LERP`.
 - Scroll-reveal con Framer Motion: `opacity 0→1`, `y 24→0`, 0.5s `easeOut`, `once: true`
   (`LIMITS.REVEAL_DURATION_S`). La variante `scaleOnView` de `Reveal` suma `scale 0.97→1` — pensada
   para cards de grilla, no para listas de texto (por eso Faq no la usa).
