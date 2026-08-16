@@ -33,6 +33,16 @@ describe("alien-glyph.svg", () => {
     expect(svg).toContain("evenodd")
   })
 
+  it('mantiene pathLength="1", del que depende el trazado del preloader', () => {
+    // El preloader dibuja el contorno animando `stroke-dashoffset` de 1 a 0.
+    // Eso solo funciona si el largo del path está normalizado a 1: sin este
+    // atributo el dash usa el largo real (decenas de unidades), el offset de 1
+    // es imperceptible y el contorno aparece entero de una, sin dibujarse.
+    // El archivo no puede llevar un comentario que lo explique — un comentario
+    // XML acá ya rompió la extrusión 3D una vez.
+    expect(/pathLength="1"/.test(svg)).toBe(true)
+  })
+
   it("declara un fill distinto de none, o 3dsvg descarta el path", () => {
     // parseShapesFromSVG solo extruye paths cuyo estilo tenga fill real.
     expect(/fill="(?!none|transparent)[^"]+"/.test(svg)).toBe(true)

@@ -102,6 +102,116 @@
 }
 
 @layer components {
+  /* ---------------------------------------------------------------------
+     Preloader de marca (ALS-041).
+
+     Toda la coreografía es CSS: el arranque del sitio no gasta JavaScript en
+     animar la pantalla que tapa al sitio. El componente solo monta, desmonta
+     y permite saltear.
+
+     --preloader-total es la FUENTE DE VERDAD del tiempo total, y
+     preloader-timing.test.ts falla si PRELOADER.TOTAL_MS deja de coincidir:
+     si el timer de desmontaje se adelanta, el overlay se va a mitad del bloom.
+  --------------------------------------------------------------------- */
+  .preloader {
+    --preloader-total: 3400ms;
+    /*
+     * Dibujo y relleno se superponen casi por completo — arrancan con solo
+     * 150ms de diferencia y los dos corren ~2.2s — para que se lean como UN
+     * movimiento continuo ("la cara se va completando") en vez de dos
+     * etapas en fila ("se dibuja el borde, después, aparte, se enciende el
+     * relleno"). Esa secuencialidad era lo que se sentía como un corte, no
+     * el costo de la animación en sí.
+     */
+    --preloader-draw: 2200ms;
+    --preloader-fill: 2200ms;
+    --preloader-fill-delay: 150ms;
+    --preloader-wordmark-delay: 2500ms;
+    --preloader-exit: 400ms;
+
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 2.5rem;
+    background-color: var(--color-background);
+    transition: opacity var(--preloader-exit) ease;
+  }
+  .preloader[data-state="exiting"] {
+    opacity: 0;
+  }
+
+  .preloader-glyph svg {
+    width: clamp(7rem, 22vw, 11rem);
+    height: auto;
+  }
+  .preloader-glyph path {
+    /* El fill del archivo se pisa acá: el color sale del token, no de un segundo literal. */
+    fill: var(--color-accent);
+    fill-opacity: 0;
+    stroke: var(--color-accent);
+    stroke-width: 0.22;
+    stroke-linejoin: round;
+    /* Depende de pathLength="1" en el asset — ver alien-glyph.test.ts. */
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation:
+      preloader-draw var(--preloader-draw) linear forwards,
+      preloader-fill var(--preloader-fill) ease-out var(--preloader-fill-delay) forwards;
+  }
+
+  @keyframes preloader-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes preloader-fill {
+    0% {
+      fill-opacity: 0;
+      filter: drop-shadow(0 0 0 var(--color-accent-glow));
+    }
+    60% {
+      filter: drop-shadow(0 0 26px var(--color-accent-glow));
+    }
+    100% {
+      fill-opacity: 1;
+      filter: drop-shadow(0 0 14px var(--color-accent-glow));
+    }
+  }
+
+  .preloader-wordmark {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 5vw, 2rem);
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: var(--color-accent);
+    opacity: 0;
+    animation: preloader-bloom 700ms ease-out var(--preloader-wordmark-delay) forwards;
+  }
+
+  /* Bloom: entra desenfocado y muy abierto, y "cuaja" en el wordmark del navbar. */
+  @keyframes preloader-bloom {
+    0% {
+      opacity: 0;
+      letter-spacing: 0.5em;
+      filter: blur(10px);
+      text-shadow: 0 0 0 var(--color-accent-glow);
+    }
+    60% {
+      opacity: 1;
+      text-shadow: 0 0 28px var(--color-accent-glow);
+    }
+    100% {
+      opacity: 1;
+      letter-spacing: 0.18em;
+      filter: blur(0);
+      text-shadow: 0 0 12px var(--color-accent-glow);
+    }
+  }
+
   /* Kicker "log de sistema" — ej. SESSION_LOG · 01 */
   .kicker {
     font-family: var(--font-mono);

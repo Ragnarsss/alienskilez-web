@@ -90,3 +90,17 @@ export const HERO_MARK = {
    */
   REVEAL_STAGE: [0.02, 0.28] as [number, number],
 } as const
+
+/**
+ * Tiempos del preloader de marca (Preloader.tsx, ALS-041).
+ *
+ * Son **espejo** de las custom properties de `.preloader` en styles/index.css,
+ * que es donde vive la coreografía. Acá solo se necesita saber cuándo
+ * desmontar. `preloader-timing.test.ts` falla si los dos lados se separan.
+ */
+export const PRELOADER = {
+  /** Duración de la secuencia completa, hasta que el wordmark termina de asentarse. */
+  TOTAL_MS: 3400,
+  /** Desvanecido del overlay una vez terminada la secuencia. */
+  EXIT_MS: 400,
+} as const

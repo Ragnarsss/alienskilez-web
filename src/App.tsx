@@ -10,6 +10,7 @@ import { Portfolio } from "@/shared/components/sections/Portfolio"
 import { Proceso } from "@/shared/components/sections/Proceso"
 import { Servicios } from "@/shared/components/sections/Servicios"
 import { Testimonios } from "@/shared/components/sections/Testimonios"
+import { Preloader } from "@/shared/components/ui/Preloader"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import { useLenis } from "@/shared/hooks/useLenis"
 
@@ -20,6 +21,8 @@ export default function App() {
     // reducedMotion="user" desactiva las animaciones de Framer Motion cuando
     // el sistema pide prefers-reduced-motion.
     <MotionConfig reducedMotion="user">
+      <Preloader />
+
       <a
         href={anchor(SECTION_IDS.MAIN)}
         className="sr-only rounded-sm bg-accent px-4 py-2 font-medium text-background focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-100"
