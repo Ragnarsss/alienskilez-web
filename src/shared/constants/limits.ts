@@ -27,6 +27,34 @@ export const LIMITS = {
   REVEAL_STAGGER_STEP_S: 0.06,
   /** Índice máximo que sigue sumando delay de stagger — evita que la última card de una grilla larga tarde de más. */
   REVEAL_STAGGER_MAX_INDEX: 5,
+  /**
+   * Scroll (vh) que consume cada card del mazo de Servicios.
+   * Con 10 servicios, 40 deja el recorrido en ~4 pantallas: suficiente para
+   * que cada card se lea sola, sin convertir la sección en un túnel.
+   */
+  SERVICES_DECK_BEAT_VH: 40,
+  /** Alto (rem) al que se clava la primera card del mazo: despeja el navbar (h-16) con aire. */
+  SERVICES_DECK_TOP_REM: 6,
+  /** Desplazamiento vertical (px) por índice — el "canto" visible de cada card ya apilada. */
+  SERVICES_DECK_FAN_STEP_Y_PX: 12,
+  /** Desplazamiento horizontal (px) por índice: convierte la pila en un abanico diagonal. */
+  SERVICES_DECK_FAN_STEP_X_PX: 14,
+  /** Escala a la que queda una card ya tapada. No baja más: el fondo del mazo no se sigue encogiendo. */
+  SERVICES_DECK_SCALE_MIN: 0.92,
+  /** Opacidad a la que queda una card ya tapada — atenuada pero todavía legible como parte de la pila. */
+  SERVICES_DECK_OPACITY_MIN: 0.45,
+  /** Aire (vh) después de la última card del mazo, para no saltar de golpe a la sección siguiente. */
+  SERVICES_DECK_TAIL_VH: 15,
+} as const
+
+/** Media queries con nombre. Ningún string de breakpoint suelto en los componentes. */
+export const MEDIA = {
+  /**
+   * Umbral del mazo de Servicios: coincide con `lg` de Tailwind, que es donde
+   * la grilla ya pasa a tres columnas. Debajo de eso el mazo apilado obliga a
+   * un recorrido largo en una pantalla chica, y la grilla simple gana.
+   */
+  DECK: "(min-width: 64rem)",
 } as const
 
 /**

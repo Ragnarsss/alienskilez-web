@@ -39,7 +39,11 @@ export function Section({
       id={id}
       aria-labelledby={headingId}
       className={cn(
-        "relative scroll-mt-20 overflow-hidden py-section",
+        // `overflow-clip`, NO `overflow-hidden`: los dos recortan igual el
+        // GeometricAccent decorativo, pero `hidden` crea un contenedor de
+        // scroll y con eso anula cualquier `position: sticky` de adentro — que
+        // es exactamente de lo que vive el mazo de Servicios. `clip` no lo crea.
+        "relative scroll-mt-20 overflow-clip py-section",
         tone === "surface-alt" && "bg-surface-alt",
         className,
       )}
