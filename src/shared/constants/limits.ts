@@ -49,74 +49,77 @@ export const LIMITS = {
    */
   SERVICES_DECK_RUNWAY_VH: 160,
   /**
-   * Ancho (px) de una card del mazo. Deliberadamente angosta: solo lleva
-   * índice + título (ver ServiceCard.tsx), no descripción ni botón — con 10
-   * cards en abanico dentro de `Container` (`max-w-6xl`, la mitad del ancho
-   * cedida al isotipo) no hay espacio real para repartir párrafos sin que
-   * se tapen.
+   * Ancho (px) de una card del mazo. Angosta a propósito: solo lleva índice
+   * + título (ver ServiceCard.tsx) — con 10 cards en cascada no hay espacio
+   * real para repartir párrafos sin que se tapen. Proporción cercana a la
+   * referencia (lenis.darkroom.engineering — cards altas, no cuadradas).
    */
-  SERVICES_DECK_CARD_WIDTH_PX: 320,
+  SERVICES_DECK_CARD_WIDTH_PX: 280,
   /**
-   * Cuántas cards quedan visibles a la vez (la actual + esta cantidad de
-   * anteriores) antes de que la más vieja desaparezca del todo. Con 10
-   * servicios y el ancho real de `Container` no entran las 10 en abanico sin
-   * que se conviertan en una franja ilegible de 40-50px cada una — la
-   * versión que dejaba las 10 acumuladas se veía como una mancha en el
-   * medio del mazo, ni siquiera las que estaban "tapadas pero legibles" se
-   * distinguían. Con esto, una card se desvanece por completo (no solo su
-   * título) en cuanto queda a más de esta profundidad de la card activa —
-   * el mazo nunca muestra más de `SERVICES_DECK_VISIBLE_DEPTH + 1` cards.
+   * Alto (px) de una card del mazo — ver `SERVICES_DECK_CARD_WIDTH_PX`.
+   * Presupuesto real verificado con Playwright: heading + CTA + esta altura
+   * + `SERVICES_DECK_VISIBLE_DEPTH * FAN_STEP_Y_PX` de cascada tienen que
+   * entrar en el `min-h-svh` del sticky SIN recortarse — el primer valor
+   * (380) se probó y la card de más atrás quedaba cortada contra el borde
+   * inferior del viewport en una pantalla de 900px de alto, así que bajó a
+   * este número junto con `FAN_STEP_Y_PX` más chico.
    */
-  SERVICES_DECK_VISIBLE_DEPTH: 3,
+  SERVICES_DECK_CARD_HEIGHT_PX: 340,
   /**
-   * Desplazamiento horizontal (px) por POSICIÓN EN LA PILA VISIBLE — no por
-   * índice absoluto. La 3ª versión usaba `index * este valor` directo, y con
-   * 10 cards eso hacía que la card 09 ("Marketing", índice 8) cayera a
-   * ~880px del borde izquierdo — bien adentro de la columna del isotipo/CTA
-   * a la derecha del mazo, el solapamiento reportado. Como una card ya
-   * desaparece del todo pasada `SERVICES_DECK_VISIBLE_DEPTH` de profundidad
-   * (ver más abajo), su slot del abanico queda libre y se puede REUSAR:
-   * `ServiciosDeck.tsx` calcula `index % (SERVICES_DECK_VISIBLE_DEPTH + 1)`
-   * y desplaza por esa posición, no por el índice crudo — el abanico nunca
-   * ocupa más ancho que `SERVICES_DECK_VISIBLE_DEPTH` pasos, sin importar
-   * cuántos servicios haya en total.
+   * Cuántos PASOS hacia atrás en la cascada quedan visibles antes de que una
+   * card desaparezca del todo — no cuántas cards, `+ 1` de esto (la recién
+   * entrada, en el paso 0) es el total de cards simultáneamente opacas, igual
+   * que la referencia (5 cards a la vez, ninguna atenuada — la 4ª versión sí
+   * atenuaba el título de las tapadas, y se leía como cards "muertas"; acá se
+   * sacó esa atenuación, ver `ServiceCard.tsx`). Con 10 servicios, una card
+   * recorre TODOS los pasos de la cascada (entra al frente, después retrocede
+   * un paso cada vez que entra la siguiente) antes de desvanecerse del todo —
+   * a diferencia de la 4ª versión, que reusaba un slot fijo por índice y
+   * hacía que la card recién entrada "saltara" a la posición 0 en vez de
+   * empujar visualmente a las anteriores hacia atrás.
    */
-  SERVICES_DECK_FAN_STEP_X_PX: 110,
+  SERVICES_DECK_VISIBLE_DEPTH: 4,
   /**
-   * Desplazamiento vertical PERMANENTE (px) por posición en la pila visible
-   * (mismo criterio de reuso de slot que el horizontal) — el reposo final
-   * de cada card en el abanico. Chico a propósito frente al horizontal: es
-   * solo el "canto" que arma la diagonal, no de dónde viene la card al
-   * entrar (eso es `SERVICES_DECK_RISE_PX`).
+   * Desplazamiento horizontal (px) por PASO de la cascada. La card recién
+   * entrada arranca en offset 0 — exactamente en la esquina de anclaje del
+   * mazo (`right-0 bottom-0`, ver `ServiciosDeck.tsx`), la posición más al
+   * frente — y cada vez que entra la SIGUIENTE card, esta retrocede un paso
+   * más (`este valor` de offset, alejándose de esa esquina hacia el resto de
+   * la pila), hasta desvanecerse del todo. Es la relación de la referencia
+   * (lenis.darkroom.engineering): la card más reciente ("05") es la más al
+   * frente Y la que menos se movió de la esquina; la más vieja todavía
+   * visible ("01") es la que más retrocedió. La 4ª versión tenía esto
+   * invertido (offset fijo por `index % slots`, la card nueva "saltaba" a
+   * offset 0 de un slot reusado en vez de nacer ahí y retroceder).
    */
-  SERVICES_DECK_FAN_STEP_Y_PX: 26,
+  SERVICES_DECK_FAN_STEP_X_PX: 80,
+  /** Desplazamiento vertical (px) por paso de la cascada — mismo criterio que `SERVICES_DECK_FAN_STEP_X_PX`. */
+  SERVICES_DECK_FAN_STEP_Y_PX: 20,
+  /**
+   * Rotación (grados) por paso de la cascada — pieza que faltaba por
+   * completo en las iteraciones anteriores y es gran parte de por qué no se
+   * leía como un abanico de cartas real: en la referencia cada card está
+   * tirada con un ángulo levemente distinto, no solo desplazada en x/y. La
+   * card recién entrada (paso 0, al frente) no tiene rotación — se ve
+   * derecha, como recién puesta encima — y cada paso que retrocede suma
+   * este valor de tilt, hasta `VISIBLE_DEPTH * este valor` en la card más
+   * vieja todavía visible.
+   */
+  SERVICES_DECK_FAN_ROTATE_STEP_DEG: 4,
   /**
    * Distancia (px) desde la que una card SUBE hasta su posición de reposo
-   * al entrar — "de abajo hacia arriba", no un deslizamiento diagonal desde
-   * la card anterior (esa fue la versión previa). Independiente del paso
-   * del abanico (`SERVICES_DECK_FAN_STEP_Y_PX`): esto es el recorrido de la
-   * animación de entrada, no el offset final entre cards.
+   * al entrar — "de abajo hacia arriba". Se suma SOLO durante la ventana de
+   * entrada propia de la card (ver `entranceWindow`); una vez asentada, el
+   * resto de su recorrido es la cascada de retroceso (`FAN_STEP_*`, arriba),
+   * no esto.
    */
-  SERVICES_DECK_RISE_PX: 72,
+  SERVICES_DECK_RISE_PX: 64,
   /**
    * Escala a la que queda una card durante su propia entrada (0-1, sube a 1
-   * al terminar). Deliberadamente sutil — el "encogimiento" no es lo que
-   * separa una card tapada de una activa, es su opacidad
-   * (SERVICES_DECK_CONTENT_OPACITY_MIN). Un scale más agresivo se leía como
-   * que la card se "rompía", no como profundidad.
+   * al terminar). Deliberadamente sutil — la profundidad la da la cascada de
+   * posición/rotación, no el tamaño.
    */
   SERVICES_DECK_SCALE_MIN: 0.98,
-  /**
-   * Opacidad mínima del título de una card ya tapada por la siguiente — no
-   * de la card completa. El marco (hud-frame + borde) se queda 100% nítido
-   * siempre, y el índice numérico tampoco se atenúa nunca — ambos son lo
-   * que mantiene el mazo legible como pila de cards reales. Bajo a
-   * propósito (casi invisible, no "atenuado pero legible"): con 10 cards
-   * superpuestas, varios títulos a la vez a media opacidad se acumulan en
-   * ruido visual — mejor que solo el título de la card activa se lea, y el
-   * resto quede como textura numerada.
-   */
-  SERVICES_DECK_CONTENT_OPACITY_MIN: 0.08,
   /**
    * Fracción de un "beat" (1/total del progreso) que ocupa la animación de
    * entrada de una card — el resto del beat es el tramo "de espera" donde

@@ -810,6 +810,68 @@ referencia fue por captura de Playwright, no por ojo humano en el sitio real —
 navegador algo sigue sin convencer (tamaño relativo del isotipo, ritmo del scroll), es candidato a
 una 5ª iteración, no algo que este registro deba maquillar como "perfecto".
 
+**5ª iteración (2026-08-24) — el usuario mandó captura de la referencia real y marcó que la 4ª
+seguía sin parecerse.** Comparando directamente contra la captura de
+lenis.darkroom.engineering ("LENIS BRINGS THE HEAT"), tres cosas de la 4ª versión estaban mal, no
+solo desajustadas:
+
+1. **Sin rotación.** La 4ª versión solo animaba `x`/`y` — la referencia tira cada card con un
+   ángulo levemente distinto, es gran parte de por qué se lee como un abanico de cartas real.
+2. **Cascada al revés.** La 4ª versión reusaba un slot fijo por `index % slots`: la card recién
+   entrada "saltaba" a offset 0 mientras las viejas quedaban con más offset — invertido respecto a
+   la referencia, donde la card MÁS RECIENTE es la que más se desplazó (y la que queda al frente),
+   y las viejas apenas se movieron de la esquina de anclaje.
+3. **Contenido atenuado.** La 4ª versión bajaba la opacidad del título de toda card tapada
+   (`SERVICES_DECK_CONTENT_OPACITY_MIN`) — se leía como cards "muertas". La referencia muestra las
+   cards de atrás NÍTIDAS, solo recortadas físicamente por la de encima.
+4. El isotipo vivía en su propia columna a la derecha, desconectado de las cards — la referencia
+   tiene la mano DIRECTAMENTE superpuesta al abanico.
+
+**Qué cambió (reescritura del mecanismo de cascada, no ajuste de números):**
+- `ServiciosDeck.tsx`: cada card ahora viaja por una cascada real de `x`/`y`/`rotate` construida
+  con `cascadeBreakpoints` — arranca en el paso 0 (offset 0, sin rotación, exactamente en la
+  esquina de anclaje `right-0 bottom-0` del mazo) y retrocede un paso completo cada vez que la
+  SIGUIENTE card entra, hasta desvanecerse tras agotar `SERVICES_DECK_VISIBLE_DEPTH` pasos. Los
+  tres motion values comparten los mismos breakpoints (`entranceWindow` de cada card siguiente) y
+  solo cambian de signo/magnitud por parámetro.
+- `ServiceCard.tsx` (variante `deck`): se sacó `contentOpacity` — ninguna card tapada se atenúa,
+  el índice pasó a ser un número grande (`text-5xl`, color acento) al estilo "01/02" de la
+  referencia, con el título abajo (`justify-between`, la card ahora tiene alto real propio,
+  `SERVICES_DECK_CARD_HEIGHT_PX`, no solo lo que ocupe el contenido).
+- El isotipo 3D pasó a vivir DENTRO del mismo contenedor relativo que las cards, superpuesto en la
+  esquina donde cae la card recién entrada (`z-index` por encima de todas). El CTA general se movió
+  al flujo normal debajo de la descripción del heading — ya no flota en una columna aparte junto al
+  isotipo (esa desconexión visual era parte de la queja).
+- **Bug real encontrado y corregido en el camino:** `AlienMark3D` antepone `"relative"` a su propio
+  `className` (lo necesita para el `absolute` interno de su boundary/fallback), y `cn()` en este
+  proyecto es un join simple sin dedupe tipo tailwind-merge — pasarle clases de posicionamiento
+  (`absolute -right-8 -bottom-10 ...`) directo a `AlienMark3D` perdía contra ese `"relative"` (orden
+  del stylesheet de Tailwind, no del string de clases) y el isotipo terminaba en flujo normal,
+  lejos de donde debía superponerse. Fix: el posicionamiento va en un `<div>` wrapper alrededor de
+  `<AlienMark3D>`, nunca en clases pasadas directo al componente.
+- Presupuesto vertical reajustado con números reales medidos (no a ojo): el heading pasó a tamaños
+  fijos (`text-4xl`, sin las variantes `sm:`/`md:` que nunca aplican porque el mazo solo se monta
+  ≥1024px) y `SERVICES_DECK_CARD_HEIGHT_PX` bajó de 380 a 340 — un primer intento con 380 dejaba la
+  card de más atrás recortada contra el borde inferior en una ventana de 900px de alto, confirmado
+  midiendo `getBoundingClientRect()` de la card real con Playwright, no estimando.
+
+**Verificado con Playwright contra `npm run dev` (scroll real) en 1024px y 1440px, antes de dar el
+ticket por resuelto:** cascada con rotación visible y creciente hacia atrás, card recién entrada
+nítida y al frente sin atenuación, isotipo correctamente superpuesto a la esquina del abanico
+(confirmado con `getBoundingClientRect()`, no solo la captura), CTA en flujo normal sin
+solapamiento, última card ("10 · Construcción de estudios") termina justo cuando el pin suelta,
+grilla mobile sin regresión (capturada en 390px, sin preloader de por medio).
+
+**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle:
+160.39 kB gzip (sin cambio relevante).
+
+**Honestidad sobre lo que sigue sin verificarse:** igual que la 4ª — QA con teclado real y anchos
+intermedios en navegador real, no solo capturas. La comparación con la referencia se hizo por
+capturas propias contra la imagen que mandó el usuario, no lado a lado en el mismo visor — sigue
+habiendo margen de que el ritmo del scroll o la intensidad de la rotación no convenzan al verlo en
+vivo, y en ese caso es una 6ª iteración de ajuste fino sobre una arquitectura que ahora sí coincide
+con la de la referencia, no otro replanteo estructural.
+
 ---
 
 ## Épica J — Medición
