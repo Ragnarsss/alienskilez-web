@@ -43,14 +43,45 @@ export const LIMITS = {
   SERVICES_DECK_BEAT_VH: 40,
   /** Alto (rem) al que se clava la primera card del mazo: despeja el navbar (h-16) con aire. */
   SERVICES_DECK_TOP_REM: 6,
-  /** Desplazamiento vertical (px) por índice — el "canto" visible de cada card ya apilada. */
-  SERVICES_DECK_FAN_STEP_Y_PX: 12,
-  /** Desplazamiento horizontal (px) por índice: convierte la pila en un abanico diagonal. */
-  SERVICES_DECK_FAN_STEP_X_PX: 14,
-  /** Escala a la que queda una card ya tapada. No baja más: el fondo del mazo no se sigue encogiendo. */
-  SERVICES_DECK_SCALE_MIN: 0.92,
-  /** Opacidad a la que queda una card ya tapada — atenuada pero todavía legible como parte de la pila. */
-  SERVICES_DECK_OPACITY_MIN: 0.45,
+  /**
+   * Desplazamiento vertical (px) por índice — el abanico diagonal.
+   * Referencia real medida contra lenis.darkroom.engineering (captura con
+   * Playwright): el offset entre cards ahí es una fracción notoria del alto
+   * de la card, no un "canto" de unos pocos píxeles — la primera versión de
+   * este valor (12px) se leía como pila vertical, no como abanico.
+   */
+  SERVICES_DECK_FAN_STEP_Y_PX: 56,
+  /** Desplazamiento horizontal (px) por índice: convierte la pila en abanico. */
+  SERVICES_DECK_FAN_STEP_X_PX: 64,
+  /**
+   * Escala a la que queda una card durante su propia entrada (0-1, sube a 1
+   * al terminar). Deliberadamente sutil: en la referencia el "encogimiento"
+   * no es perceptible — lo que separa una card tapada de una activa es que
+   * su contenido se atenúa (SERVICES_DECK_CONTENT_OPACITY_MIN), no su
+   * tamaño. Un scale más agresivo se probó y se leía como que la card se
+   * "rompía", no como profundidad.
+   */
+  SERVICES_DECK_SCALE_MIN: 0.98,
+  /**
+   * Opacidad mínima del CONTENIDO (título, descripción, botón) de una card
+   * ya tapada por la siguiente — no de la card completa. El marco
+   * (hud-frame + borde) se queda 100% nítido siempre; es lo que en la
+   * referencia mantiene el "mazo" legible como pila de tarjetas reales en
+   * vez de disolverse. El índice numérico de la card tampoco se atenúa
+   * nunca, mismo criterio que el "01/02/03" de la referencia.
+   */
+  SERVICES_DECK_CONTENT_OPACITY_MIN: 0.35,
+  /**
+   * Fracción de un "beat" (1/total del progreso) que ocupa la animación de
+   * entrada de una card — el resto del beat es el tramo "de espera" donde
+   * solo gira el isotipo (ver SERVICES_DECK_ALIEN_TURNS_PER_BEAT). En la
+   * referencia la mano gira gran parte del tramo entre una card y la
+   * siguiente, y la card recién entra cerca del final — no es un fundido
+   * parejo a lo largo de todo el beat.
+   */
+  SERVICES_DECK_ENTRANCE_FRACTION: 0.24,
+  /** Vueltas completas que gira el isotipo por cada beat de scroll (1 = una vuelta entre card y card, como el brazo de la referencia). */
+  SERVICES_DECK_ALIEN_TURNS_PER_BEAT: 1,
   /** Aire (vh) después de la última card del mazo, para no saltar de golpe a la sección siguiente. */
   SERVICES_DECK_TAIL_VH: 15,
 } as const
