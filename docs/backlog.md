@@ -645,60 +645,96 @@ referenciaba este ID desde el 2026-08-16 sin que existiera acá — un ticket fa
 gap que ADR-11 ya corrigió una vez para otro caso.
 
 En desktop (`MEDIA.DECK`, ≥1024px, coincide con el `lg` de Tailwind) las 10 cards de Servicios se
-apilan como un mazo con el scroll: abanico diagonal, varias cards legibles a la vez, un isotipo que
-gira mientras se espera la próxima card. Referencia visual: la sección "Lenis brings the heat" de
-lenis.darkroom.engineering. En mobile y con `prefers-reduced-motion` se mantiene la grilla simple
-original — decisión de layout, no de "hay o no movimiento": el mazo exige un recorrido de scroll
-largo que no tiene sentido imponerle a quien pidió menos movimiento, aunque Lenis y el resto del
-sitio ignoren esa preferencia a propósito (`f8d4623`).
+apilan como un mazo con el scroll: abanico diagonal, cada card sube desde abajo a su lugar, un
+isotipo 3D que gira mientras se espera la próxima. Referencia visual: la sección "Lenis brings the
+heat" de lenis.darkroom.engineering. En mobile y con `prefers-reduced-motion` se mantiene la grilla
+simple original (con descripción y CTA por servicio) — decisión de layout, no de "hay o no
+movimiento": el mazo exige un recorrido de scroll que no tiene sentido imponerle a quien pidió menos
+movimiento, aunque Lenis y el resto del sitio ignoren esa preferencia a propósito (`f8d4623`).
 
-**Iteró dos veces sobre el mismo bug — vale la pena el registro:**
+**Tres iteraciones sobre el mismo componente — vale la pena el registro completo, cada una con una
+causa real, no estética:**
 
-1ª versión: cada card con su propio `position: sticky` en un bloque de `40vh`. Se veía como pila
-vertical con apenas un "canto" asomando, nunca el abanico — el usuario lo reportó comparando
-capturas reales. Causa: con `sticky` por card, cada una se suelta al terminar su propio tramo de
-scroll y la siguiente la reemplaza en secuencia — nunca hay más de una completamente visible a la
-vez, sin importar cuánto se agrandara el offset del abanico.
+**1ª versión:** cada card con su propio `position: sticky` en un bloque de `40vh`. Se veía como pila
+vertical con apenas un "canto" asomando, nunca el abanico. Causa: con `sticky` por card, cada una se
+suelta al terminar su propio tramo de scroll y la siguiente la reemplaza en secuencia — nunca hay
+más de una completamente visible a la vez, sin importar cuánto se agrandara el offset. Antes de
+corregirla se navegó **lenis.darkroom.engineering con Playwright** (24 capturas) para verificar la
+mecánica real en vez de asumirla.
 
-Antes de la 2ª versión se navegó **lenis.darkroom.engineering con Playwright** (24 capturas,
-scrolleando la sección real en pasos de 200px) para verificar la mecánica en vez de asumirla: el
-offset entre cards es una fracción notoria del ancho de la card (no unos pocos px), el marco de una
-card tapada se queda 100% nítido — solo su contenido se atenúa —, el índice numérico nunca pierde
-opacidad, y la mano/isotipo ocupa la mayor parte del scroll entre una card y la siguiente (la card
-recién entra cerca del final de ese tramo).
+**2ª versión:** un solo contenedor `sticky` para todo el mazo, cada card en absoluto adentro
+animada por `transform` a un offset x/y permanente, deslizándose en diagonal desde la posición de
+la anterior. Arregló el abanico, pero con las 10 cards (con descripción y botón propio) acumuladas
+a la vez en un ancho de `Container` compartido con el isotipo, el resultado era una mancha de texto
+ilegible en el centro del mazo — reportado con captura anotada. Verificado el diagnóstico con
+**Playwright contra el propio `npm run dev`**: con `window.scrollTo()` crudo el resultado salía
+inconsistente porque Lenis pelea con saltos de scroll que no pasan por su propio loop; con scroll
+real (`mouse.wheel`, incremental) se confirmó que sí eran las 10 cards simultáneas, no un glitch de
+captura.
 
-2ª versión (la actual): **un solo contenedor `sticky`** para todo el mazo (no uno por card), con
-cada card posicionada en absoluto adentro y animada por `transform` a un offset x/y **permanente**
-según su índice — se queda ahí, tapada por la siguiente, mientras dure el scroll fijado. Verificado
-con **Playwright contra el propio `npm run dev`** (no solo mirado en la referencia ajena): con
-`window.scrollTo()` crudo el resultado salía inconsistente porque Lenis pelea con saltos de scroll
-que no pasan por su propio loop; con scroll real (`mouse.wheel`, incremental) se confirmaron las 10
-cards apiladas en abanico, los índices nítidos, y el isotipo girando a la derecha del mazo.
+**3ª versión (la actual), cuatro correcciones sobre la 2ª:**
+- **Sin CTA por card.** Con 10 servicios de tiers distintos no tiene sentido un botón "Agenda tu
+  sesión"/"Cotiza tu proyecto" repetido diez veces apuntando al mismo `#contacto` — uno solo,
+  general, fijo junto al isotipo.
+- **Cards angostas, solo índice + título** (`ServiceCard.tsx`, `layout="deck"`) — sin descripción.
+  La cuenta real: `Container` (`max-w-6xl`) menos el isotipo deja ~730px a 1024px de viewport (el
+  breakpoint más angosto donde el mazo se activa); repartir 10 párrafos ahí sin que se tapen no es
+  posible. El detalle completo de cada servicio sigue en la grilla — el mazo es la pieza de
+  impacto, no la ficha técnica.
+- **Solo `SERVICES_DECK_VISIBLE_DEPTH` (3) cards visibles a la vez**, no las 10 acumuladas: una card
+  desaparece del todo (no solo se atenúa) al quedar más de esa profundidad detrás de la activa. Es
+  lo que resuelve la mancha ilegible de la 2ª versión — nunca hay más de 4 cards compitiendo por
+  atención.
+- **Entrada de abajo hacia arriba**, no diagonal desde la card anterior: `x` es fijo (el paso del
+  abanico no se anima), `y` sube desde `restY + SERVICES_DECK_RISE_PX` hasta su reposo. La versión
+  anterior deslizaba en diagonal y se leía como "cae de arriba", no como abanico.
+- **Isotipo 3D real** (`AlienMark3D.tsx`, nuevo, factorizado de `HeroMark3D.tsx` sin tocar ese
+  archivo — su historial de cuatro reescrituras por fallos silenciosos, ADR-12, hace que cualquier
+  refactor ahí sea riesgo real). El chunk de `3dsvg` (~320 kB gzip) se pide una sola vez por
+  *specifier*; una segunda instancia en Servicios reusa el chunk ya cacheado, no lo vuelve a
+  descargar — verificado comparando el build antes/después (el chunk `dist-*.js` no cambió de
+  tamaño). Gira de forma autónoma (`animate="spin"`, mismo criterio que el Hero) — 3dsvg no expone
+  una forma de atar la rotación a un valor externo como el progreso de scroll.
+- **Sección más corta y sin scroll muerto al final.** `SERVICES_DECK_BEAT_VH` bajó de 40 a 16 y
+  `SERVICES_DECK_TAIL_VH` de 15 a 6 — con el tramo de espera (solo el isotipo girando) ocupando la
+  mayor parte de cada beat, 40vh × 10 cards hacía la sección larguísima. Además, la ventana de
+  entrada de la ÚLTIMA card ahora termina en progreso `1.0` exacto (antes terminaba en `0.9`,
+  dejando un 10% del scroll fijado sin que pasara nada antes de soltar el pin) — mismo tipo de
+  desajuste entre pin y contenido que tuvo el Hero (`879aef8`), aunque ahí el pin se soltaba antes
+  de tiempo y acá era al revés: se sostenía de más.
 
 **Piezas nuevas:**
 - `src/shared/hooks/useMediaQuery.ts` — `useSyncExternalStore` sobre `matchMedia`, parametrizado
-  por query, con `subscribe`/`getSnapshot` cacheados por query en un `Map` a nivel de módulo (sin
-  eso, useSyncExternalStore ve funciones "nuevas" en cada render y se resuscribe en loop).
-- `src/shared/components/sections/ServiceCard.tsx` — el markup de una card, compartido entre
-  grilla y mazo vía `layout: "grid" | "deck"`. En `"deck"` suma el índice (`01`, `02`…, estilo
-  `Kicker`, nunca se atenúa) y `contentOpacity` (solo título/descripción/botón, no el marco).
-- `src/shared/components/sections/ServiciosDeck.tsx` — el mazo: un contenedor alto (pista de
-  scroll) con un único hijo `sticky`; adentro, cada card en absoluto con su offset final permanente
-  (`x`/`y`/`scale`/`opacity` vía `useTransform`, clamped antes y después de su propia ventana de
-  entrada) y un isotipo plano (`DeckAlien`) que gira en CSS (`rotateY`) atado al mismo progreso.
+  por query, con `subscribe`/`getSnapshot` cacheados por query en un `Map` a nivel de módulo.
+- `src/shared/components/ui/AlienMark3D.tsx` — isotipo 3D reutilizable (boundary + fallback plano +
+  `Suspense`), usado acá y potencialmente en cualquier otro lugar que necesite el mismo giro.
+- `src/shared/components/sections/ServiceCard.tsx` — `layout: "grid" | "deck"`; `"deck"` es índice +
+  título únicamente, con `contentOpacity` animada solo sobre el título (el marco se queda nítido
+  siempre).
+- `src/shared/components/sections/ServiciosDeck.tsx` — el mazo: contenedor alto (pista de scroll)
+  con un único hijo `sticky`; cada card en absoluto con `x` fijo y `y`/`scale`/`opacity` animados
+  por `useTransform` sobre su propia ventana de entrada, más una segunda ventana de "desaparición"
+  a `SERVICES_DECK_VISIBLE_DEPTH` cards de profundidad.
 - `Section.tsx` (`4b1360d`) — `overflow-hidden` → `overflow-clip`: `hidden` crea un contenedor de
   scroll que anula cualquier `sticky` de adentro.
 
 **Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle
-inicial: 159.65 kB gzip (línea base previa: 157.27 — el mazo reusa Framer Motion, ya en el bundle,
-así que el costo marginal es bajo; sigue en ámbar contra el umbral verde de 150 kB de
-`quality-gates.md` §2, no lo empeora de forma significativa). Verificado visualmente con Playwright
-contra `npm run dev`: abanico de 10 cards, grilla mobile sin cambios, foco de teclado sin decidir
-todavía si queda tapado por la card de encima (ver pendiente abajo).
+inicial: 159.87 kB gzip (línea base previa a ALS-043: 157.27 — sigue en ámbar contra el umbral verde
+de 150 kB de `quality-gates.md` §2, no lo empeora de forma significativa; el chunk 3D no creció).
+Verificado visualmente con Playwright contra `npm run dev` con scroll real (`mouse.wheel`, no
+`scrollTo` crudo — Lenis lo pelea): abanico de hasta 4 cards simultáneas, entrada de abajo hacia
+arriba, isotipo 3D real girando, altura de la sección Servicios bajó de 4232px a 1991px (-53%).
+
+**Rugosidad menor observada, no bloqueante:** la entrada de la ÚLTIMA card puede quedar visualmente
+ajustada contra el borde inferior de la sección justo cuando el pin se suelta — no es un corte
+duro, pero no está tan pulido como el resto de las transiciones. Candidato a ajuste fino si al
+verlo en navegador real molesta.
 
 **Pendiente de QA manual real** (no verificable desde este entorno): recorrer el mazo completo con
 `Tab` en un navegador real y confirmar que el anillo de foco de cada CTA no queda visualmente
-tapado por la card de encima cuando el navegador no auto-scrollea al enfocar.
+tapado por la card de encima cuando el navegador no auto-scrollea al enfocar. Con el CTA único ya
+fuera de las cards, esto se reduce a un solo botón (el general), pero sigue sin verificarse con
+teclado real.
 
 **Pendiente de QA visual manual** (no verificable desde este entorno): confirmar en navegador que
 el abanico se ve bien a 1024px y 1440px, que la última card no se atenúa, que ninguna card deja ver
