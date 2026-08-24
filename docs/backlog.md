@@ -741,6 +741,75 @@ el abanico se ve bien a 1024px y 1440px, que la última card no se atenúa, que 
 la de abajo, y recorrer el mazo completo con `Tab` confirmando que el anillo de foco de cada CTA no
 queda visualmente tapado por la card de encima.
 
+**4ª iteración (2026-08-24) — replanteo de estructura, no ajuste de constantes.** Las tres
+iteraciones anteriores arreglaron bugs reales sobre una arquitectura que seguía sin parecerse a la
+referencia (lenis.darkroom.engineering). Diagnóstico honesto de lo que estaba mal, confirmado
+comparando capturas propias contra la referencia:
+
+1. **La sección no medía un viewport, medía una pista de scroll `BEAT_VH * total + TAIL_VH`**
+   (166vh, atada al conteo de servicios) con el pin sostenido mucho más de lo necesario y el
+   contenido apenas ocupando una esquina — nunca llenaba la pantalla como el Hero.
+2. **El heading de la sección ("Lo que se puede contratar") vivía en el header normal de
+   `Section`**, contenido de flujo normal que scrollea y desaparece ANTES de que el pin del mazo
+   siquiera se activara — el pin no se engancha hasta que su wrapper llega al tope del viewport,
+   así que el heading ya se había ido para entonces.
+3. **Bug real de solapamiento:** `restX = index * FAN_STEP_X_PX` usaba el índice ABSOLUTO (0-9), no
+   la profundidad visible. La card "09 · Marketing" (índice 8) caía a `8 * 90 = 720px` del borde
+   izquierdo — bien adentro de la columna del isotipo/CTA a la derecha del mazo. Con solo
+   `SERVICES_DECK_VISIBLE_DEPTH` (3) cards visibles a la vez y las demás ya desvanecidas del todo,
+   ese slot del abanico estaba libre para reusarse.
+
+**Qué cambió (estructura, no números):**
+- **Pin clonado del Hero, no reinventado.** `ServiciosDeck.tsx` ahora usa el mismo esqueleto que
+  `Hero.tsx`: alto del wrapper = `calc(alturaMedidaDelSticky + RUNWAY_VH)` (`useMeasuredHeightPx`,
+  no una pista atada al conteo de servicios), `useScroll` con offset `["start start",
+  "${RUNWAY}vh start"]` (no `"end end"`), y el sticky interno en `min-h-[100svh] flex items-center`
+  — el contenido llena una pantalla real, centrado, no un stack chico anclado con `top: Nrem`.
+  `SERVICES_DECK_RUNWAY_VH` (160, fijo) reemplaza a `SERVICES_DECK_BEAT_VH` / `_TAIL_VH`:
+  `entranceWindow` reparte el progreso 0→1 en fracciones iguales sin importar el conteo de
+  servicios, así que desacoplar el runway del conteo solo cambia la velocidad de scroll por card,
+  no el ritmo relativo entre ellas.
+- **El heading vive DENTRO del sticky del mazo**, no en el header normal de `Section`. Nueva prop
+  `ariaLabelledBy` en `Section.tsx` para cuando `title` no se le pasa porque el propio `children` lo
+  renderiza — mantiene la sección etiquetada para a11y sin duplicar el heading visualmente.
+  `Servicios.tsx` centraliza kicker/title/description en constantes de módulo y se los pasa a
+  `ServiciosDeck` en modo mazo, o a `Section` en modo grilla (sin cambios ahí).
+- **Fix del solapamiento: offset del abanico por profundidad visible, no por índice absoluto.**
+  `fanSlot = index % (SERVICES_DECK_VISIBLE_DEPTH + 1)` — como una card ya desapareció del todo
+  pasada esa profundidad, su slot queda libre para la siguiente. El abanico nunca ocupa más que
+  `VISIBLE_DEPTH` pasos de ancho sin importar el índice, verificado con Playwright en 1024px y
+  1440px: la card "09 · Marketing" y la "10 · Construcción de estudios" nunca invaden la columna
+  del isotipo/CTA.
+- Tamaños subidos con criterio (no ajuste fino a ciegas): `CARD_WIDTH_PX` 300→320, isotipo
+  `h-36 w-36`→`h-48 w-48`, `FAN_STEP_X_PX` 90→110, `FAN_STEP_Y_PX` 20→26, `RISE_PX` 64→72 — el mazo
+  usa más del ancho/alto real disponible dentro de `Container`, verificado que sigue entrando a
+  1024px (~960px de ancho interior) sin desbordar.
+- **Fix menor de borde:** la card 0 usaba una ventana de entrada `[0, 0.0001]` que en progreso
+  EXACTO 0 (el primer frame del pin, antes de cualquier scroll) mapeaba al extremo inferior del
+  rango → opacidad 0, invisible. Cambiado a `[-0.0001, 0]` así progreso 0 ya cae en el extremo
+  superior (opacidad 1) — la card 0 se ve desde el primer frame, sin depender de un scroll mínimo.
+
+**Verificado con Playwright contra `npm run dev` (scroll real, `mouse.wheel`) antes de dar el
+ticket por resuelto** — no solo los gates automatizados:
+- El heading se mantiene fijo en pantalla durante todo el pin: medido con
+  `getBoundingClientRect().top` del `<h2>` en cada tick de scroll, se mantuvo en el mismo píxel
+  (217.97) durante ~1200px de scroll (el tramo "stuck" real), con una transición de entrada/salida
+  breve a cada lado — mismo comportamiento que el Hero.
+- Sin solapamiento del CTA con ninguna card, en 1024px y 1440px, en todo el recorrido del mazo.
+- La última card ("10 · Construcción de estudios") termina su entrada justo cuando el pin suelta —
+  sin tramo de scroll muerto antes de pasar a Portfolio.
+
+**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle:
+160.30 kB gzip (sin cambio relevante respecto a la 3ª iteración, 159.87 kB — sigue en ámbar contra
+el umbral verde de 150 kB, no lo empeora).
+
+**Honestidad sobre lo que sigue sin verificarse** (no verificable desde este entorno): QA con
+teclado real (`Tab` por el CTA único, confirmar que el foco no se tape visualmente) y una revisión
+en navegador real a anchos intermedios entre 1024 y 1440px. La comparación visual contra la
+referencia fue por captura de Playwright, no por ojo humano en el sitio real — si al verlo en
+navegador algo sigue sin convencer (tamaño relativo del isotipo, ritmo del scroll), es candidato a
+una 5ª iteración, no algo que este registro deba maquillar como "perfecto".
+
 ---
 
 ## Épica J — Medición

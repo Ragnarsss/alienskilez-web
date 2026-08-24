@@ -36,18 +36,18 @@ export const LIMITS = {
   /** Índice máximo que sigue sumando delay de stagger — evita que la última card de una grilla larga tarde de más. */
   REVEAL_STAGGER_MAX_INDEX: 5,
   /**
-   * Scroll (vh) que consume cada card del mazo de Servicios — el "beat"
-   * completo (espera + entrada), no la entrada sola.
-   * Bajado de 40 a 16: con 40, el tramo de espera (donde solo gira el
-   * isotipo, `1 - SERVICES_DECK_ENTRANCE_FRACTION` de cada beat) hacía la
-   * sección larguísima — el pin se sostenía mucho más de lo que el
-   * contenido necesitaba, mismo síntoma de fondo que el pin del Hero
-   * (879aef8), aunque ahí era el pin soltándose antes de tiempo y acá es
-   * al revés: sosteniéndose de más.
+   * Presupuesto de scroll (vh) del pin del mazo de Servicios — mismo patrón
+   * que `HERO_PIN_RUNWAY_VH`: un runway FIJO, no multiplicado por la
+   * cantidad de servicios (`BEAT_VH * total`, la versión anterior). Con el
+   * runway atado al conteo, el pin se sostenía varios cientos de vh más de
+   * lo que el contenido necesitaba y la sección se sentía interminable —
+   * `entranceWindow` ya reparte el progreso 0→1 en fracciones iguales
+   * (`index / total`), así que el "ritmo" por card no depende de cuánto vh
+   * tenga el runway, solo de cuántos servicios hay. Separar ambas cosas es
+   * lo que permite que el runway sea corto (una sola pantalla de scroll,
+   * como el Hero) sin apurar ninguna entrada.
    */
-  SERVICES_DECK_BEAT_VH: 16,
-  /** Alto (rem) al que se clava la primera card del mazo: despeja el navbar (h-16) con aire. */
-  SERVICES_DECK_TOP_REM: 6,
+  SERVICES_DECK_RUNWAY_VH: 160,
   /**
    * Ancho (px) de una card del mazo. Deliberadamente angosta: solo lleva
    * índice + título (ver ServiceCard.tsx), no descripción ni botón — con 10
@@ -55,7 +55,7 @@ export const LIMITS = {
    * cedida al isotipo) no hay espacio real para repartir párrafos sin que
    * se tapen.
    */
-  SERVICES_DECK_CARD_WIDTH_PX: 300,
+  SERVICES_DECK_CARD_WIDTH_PX: 320,
   /**
    * Cuántas cards quedan visibles a la vez (la actual + esta cantidad de
    * anteriores) antes de que la más vieja desaparezca del todo. Con 10
@@ -69,22 +69,27 @@ export const LIMITS = {
    */
   SERVICES_DECK_VISIBLE_DEPTH: 3,
   /**
-   * Desplazamiento horizontal (px) por índice — el abanico diagonal. Con
-   * `SERVICES_DECK_VISIBLE_DEPTH` cards visibles a la vez (no las 10), el
-   * ancho a repartir es `SERVICES_DECK_CARD_WIDTH_PX +
-   * SERVICES_DECK_VISIBLE_DEPTH * este valor` — bastante menos que
-   * `SERVICES_DECK_CARD_WIDTH_PX * total`, así que el paso puede ser
-   * generoso sin desbordar la columna izquierda del mazo a 1024px (el
-   * breakpoint más angosto donde el mazo se activa, ≈730px de ancho real).
+   * Desplazamiento horizontal (px) por POSICIÓN EN LA PILA VISIBLE — no por
+   * índice absoluto. La 3ª versión usaba `index * este valor` directo, y con
+   * 10 cards eso hacía que la card 09 ("Marketing", índice 8) cayera a
+   * ~880px del borde izquierdo — bien adentro de la columna del isotipo/CTA
+   * a la derecha del mazo, el solapamiento reportado. Como una card ya
+   * desaparece del todo pasada `SERVICES_DECK_VISIBLE_DEPTH` de profundidad
+   * (ver más abajo), su slot del abanico queda libre y se puede REUSAR:
+   * `ServiciosDeck.tsx` calcula `index % (SERVICES_DECK_VISIBLE_DEPTH + 1)`
+   * y desplaza por esa posición, no por el índice crudo — el abanico nunca
+   * ocupa más ancho que `SERVICES_DECK_VISIBLE_DEPTH` pasos, sin importar
+   * cuántos servicios haya en total.
    */
-  SERVICES_DECK_FAN_STEP_X_PX: 90,
+  SERVICES_DECK_FAN_STEP_X_PX: 110,
   /**
-   * Desplazamiento vertical PERMANENTE (px) por índice — el reposo final de
-   * cada card en el abanico. Chico a propósito frente al horizontal: es
+   * Desplazamiento vertical PERMANENTE (px) por posición en la pila visible
+   * (mismo criterio de reuso de slot que el horizontal) — el reposo final
+   * de cada card en el abanico. Chico a propósito frente al horizontal: es
    * solo el "canto" que arma la diagonal, no de dónde viene la card al
    * entrar (eso es `SERVICES_DECK_RISE_PX`).
    */
-  SERVICES_DECK_FAN_STEP_Y_PX: 20,
+  SERVICES_DECK_FAN_STEP_Y_PX: 26,
   /**
    * Distancia (px) desde la que una card SUBE hasta su posición de reposo
    * al entrar — "de abajo hacia arriba", no un deslizamiento diagonal desde
@@ -92,7 +97,7 @@ export const LIMITS = {
    * del abanico (`SERVICES_DECK_FAN_STEP_Y_PX`): esto es el recorrido de la
    * animación de entrada, no el offset final entre cards.
    */
-  SERVICES_DECK_RISE_PX: 64,
+  SERVICES_DECK_RISE_PX: 72,
   /**
    * Escala a la que queda una card durante su propia entrada (0-1, sube a 1
    * al terminar). Deliberadamente sutil — el "encogimiento" no es lo que
@@ -115,23 +120,10 @@ export const LIMITS = {
   /**
    * Fracción de un "beat" (1/total del progreso) que ocupa la animación de
    * entrada de una card — el resto del beat es el tramo "de espera" donde
-   * solo gira el isotipo. Subido de 0.24 a 0.4 junto con la baja de
-   * `SERVICES_DECK_BEAT_VH`: con la espera más corta, no hace falta que sea
-   * una fracción tan chica del beat para seguir sintiéndose "la mano gira,
-   * después entra la card" en vez de un fundido parejo.
+   * solo gira el isotipo, sintiéndose como "la mano gira, después entra la
+   * card" en vez de un fundido parejo.
    */
   SERVICES_DECK_ENTRANCE_FRACTION: 0.4,
-  /**
-   * Aire (vh) después de que la ÚLTIMA card termina de entrar, antes de
-   * soltar el pin. Chico a propósito: la entrada de la última card ya
-   * termina justo al final del progreso del mazo (ver `entranceWindow` en
-   * `ServiciosDeck.tsx`), así que esto es solo un respiro de lectura, no un
-   * tramo muerto de scroll — el síntoma reportado (scroll de más después de
-   * que la última card ya apareció) era exactamente por tener este valor
-   * grande (15) sumado a que la última card terminaba su entrada al 90%
-   * del progreso, no al 100%.
-   */
-  SERVICES_DECK_TAIL_VH: 6,
 } as const
 
 /** Media queries con nombre. Ningún string de breakpoint suelto en los componentes. */

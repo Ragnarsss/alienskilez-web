@@ -7,6 +7,12 @@ import { SERVICES } from "@/shared/constants/services"
 import { useMediaQuery } from "@/shared/hooks/useMediaQuery"
 import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion"
 
+const KICKER = "SERVICIOS"
+const TITLE = "Lo que se puede contratar"
+const DESCRIPTION =
+  "Desde una sesión suelta hasta el acompañamiento completo de una carrera. No publicamos " +
+  "tarifas porque el valor depende del alcance real: cuéntanos tu caso y te cotizamos."
+
 export function Servicios() {
   // Los dos hooks se llaman siempre, sin condicional — solo cambia qué se
   // renderiza. El mazo (ALS-043) es una decisión de layout, no de "hay o no
@@ -18,19 +24,25 @@ export function Servicios() {
   const isDeckViewport = useMediaQuery(MEDIA.DECK)
   const prefersReducedMotion = usePrefersReducedMotion()
   const isDeck = isDeckViewport && !prefersReducedMotion
+  const headingId = `${SECTION_IDS.SERVICIOS}-title`
 
   return (
     <Section
       id={SECTION_IDS.SERVICIOS}
       index="02"
-      kicker="SERVICIOS"
       tone="surface-alt"
       geometry="chevrons"
-      title="Lo que se puede contratar"
-      description="Desde una sesión suelta hasta el acompañamiento completo de una carrera. No publicamos tarifas porque el valor depende del alcance real: cuéntanos tu caso y te cotizamos."
+      // El heading NO se le pasa a `Section` en modo mazo: `ServiciosDeck`
+      // lo renderiza DENTRO de su propio contenido fijado por el pin (ver
+      // el comentario en ese archivo) para que se sostenga en pantalla
+      // junto con las cards en vez de scrollear fuera antes de que el pin
+      // arranque. `ariaLabelledBy` mantiene la sección etiquetada igual.
+      {...(isDeck
+        ? { ariaLabelledBy: headingId }
+        : { kicker: KICKER, title: TITLE, description: DESCRIPTION })}
     >
       {isDeck ? (
-        <ServiciosDeck />
+        <ServiciosDeck headingId={headingId} kicker={KICKER} title={TITLE} description={DESCRIPTION} />
       ) : (
         <div className="grid gap-px overflow-hidden rounded-sm border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map((service, index) => (

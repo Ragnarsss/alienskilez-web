@@ -19,6 +19,16 @@ interface SectionProps {
   tone?: "background" | "surface-alt"
   /** Figura "Signal Geometry" de fondo, decorativa — ver ui/GeometricAccent.tsx. */
   geometry?: GeometricVariant
+  /**
+   * Id de un heading externo que etiqueta la sección, para cuando `title` no
+   * se pasa acá porque el propio `children` lo renderiza (el mazo de
+   * Servicios, ALS-043: el heading vive DENTRO del contenido fijado por el
+   * pin, no en el header normal de `Section`, para que se sostenga en
+   * pantalla junto con el mazo en vez de scrollear fuera antes de que el pin
+   * arranque). Ignorado si `title` está presente — ese caso ya se etiqueta
+   * solo.
+   */
+  ariaLabelledBy?: string
 }
 
 export function Section({
@@ -31,13 +41,14 @@ export function Section({
   className,
   tone = "background",
   geometry,
+  ariaLabelledBy,
 }: SectionProps) {
   const headingId = title ? `${id}-title` : undefined
 
   return (
     <section
       id={id}
-      aria-labelledby={headingId}
+      aria-labelledby={headingId ?? ariaLabelledBy}
       className={cn(
         // `overflow-clip`, NO `overflow-hidden`: los dos recortan igual el
         // GeometricAccent decorativo, pero `hidden` crea un contenedor de
