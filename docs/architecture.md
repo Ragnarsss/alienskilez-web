@@ -423,6 +423,46 @@ apaga explícitamente, no se asume cubierto.
 **Costo:** ~15 kB gzip, dentro del bundle principal. A diferencia del motor 3D (ADR-12), esto sí
 afecta a todo visitante desde el primer scroll, así que carga de forma estática.
 
+### ADR-15 — Analítica de conversión con GA4 estándar, supersede la restricción de ALS-023 (2026-08-24)
+
+**Contexto:** ALS-023 (Épica J) fijó como restricción dura "sin cookies, sin datos personales, sin
+banner de consentimiento" para medir el embudo de conversión — razonable cuando el sitio no tenía
+todavía un objetivo de marketing medible explícito, y la preocupación real era evitar un modal
+bloqueante justo antes del CTA. Ese objetivo ahora es explícito: el sitio necesita atribución de
+conversión confiable (qué CTA convierte — "Agenda tu sesión" vs "Cotiza tu proyecto" — y cuánto del
+tráfico llega a abrir WhatsApp) para poder resolver con datos, no con intuición, decisiones que hoy
+están trabadas (ALS-024: si el JS extra se justifica; ALS-041: si el preloader ayuda o daña).
+Además, Chile tiene una ley de protección de datos nueva (Ley 21.719) entrando en régimen durante
+2026, con obligaciones de consentimiento más cercanas al modelo europeo — se verificó que aplica
+como advertencia a futuro, no como bloqueo hoy, pero condiciona la consecuencia de esta ADR.
+**Decisión:** usar **Google Analytics 4 estándar** (cookies de primera parte `_ga`/`_ga_*`), con un
+aviso de cookies **mínimo y no bloqueante** — una franja o toast que informa el uso y permite
+rechazar, nunca un modal que tape el contenido o el CTA antes de que el visitante pueda actuar.
+Esto **reemplaza explícitamente** la restricción "sin banner" de ALS-023 — no se ignora, se
+supersede acá, con el mismo criterio de honestidad de ADR-6 y ADR-11: la decisión vieja queda
+registrada, y esta dice por qué cambió.
+**Alternativas descartadas:**
+- *Analítica cookieless* (Plausible, Fathom) — cumplía la restricción original sin ningún aviso,
+  pero es una herramienta nueva para el negocio (que ya opera con Google) y agrega un costo mensual
+  recurrente sin beneficio claro una vez que se acepta un aviso mínimo en vez de cero aviso.
+- *GA4 con Consent Mode v2, denegado por defecto* — cero fricción visual si nunca se pide consentimiento,
+  pero los datos del tráfico sin consentimiento quedan **modelados/aproximados** por Google, no
+  medidos exactos — exactamente lo que esta decisión prioriza evitar.
+**Consecuencia:**
+- Se agrega un componente de aviso de cookies mínimo, con opción real de rechazar — GA4 respeta el
+  rechazo cuando el visitante lo ejerce.
+- Ningún dato personal viaja a GA4: nombre, teléfono, o el contenido del campo `message` del
+  formulario nunca son parte de un evento. Solo se miden hechos del embudo (clic por CTA y su
+  `tier`, envío válido, apertura de WhatsApp) — ver la skill `analitica-conversion` del repo para
+  el detalle de implementación.
+- El evento de conversión se instrumenta desde `useBookingForm` (la capa de orquestación), nunca
+  desde `Contacto.tsx` — mismo criterio de ADR de separación de responsabilidades del proyecto.
+- **Antes de que el sitio reciba tráfico real de forma sostenida, verificar el estado final de la
+  Ley 21.719 y si exige algo más que un aviso mínimo para este volumen y tipo de dato.** Si la ley
+  obliga a más, esta ADR se revisa explícitamente — no se ignora en silencio, mismo criterio que
+  se le aplicó a la ADR-23 original.
+- `docs/backlog.md` ALS-023 se actualiza para reflejar esta decisión con alcance concreto.
+
 ## 7. Deuda conocida y diferida a propósito
 
 Documentado como decisión, no como olvido:

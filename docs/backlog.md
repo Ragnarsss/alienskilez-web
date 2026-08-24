@@ -610,12 +610,22 @@ largo, saber cuánto falta reduce el abandono.
 
 ### ALS-041 — Preloader de marca
 
-- Prioridad: P3 · Esfuerzo: S · Estado: Propuesto
+- Prioridad: P3 · Esfuerzo: S · **Estado: Hecho** *(commit `3de33fb`, backlog corregido 2026-08-24 —
+  se cerró en código sin actualizar este documento en el mismo commit, contra la regla de §5)*
 
-**Ojo con este:** un preloader *agrega* tiempo percibido a cambio de una impresión de marca.
-En una landing de conversión suele ser mala idea. Solo tiene sentido si Lighthouse (ALS-019) muestra
-que el sitio ya tarda lo suficiente como para que un preloader mejore la percepción en vez de
-empeorarla. **No hacerlo por gusto.**
+**Ojo con este:** un preloader *agrega* tiempo percibido a cambio de una impresión de marca. En una
+landing de conversión suele ser mala idea. La decisión de construirlo igual **no esperó** a los
+datos de Lighthouse (ALS-019) que este mismo ticket pedía como condición — queda registrado como
+desviación, no como criterio cumplido.
+
+Overlay de ~3.4s: el isotipo se dibuja como contorno (`stroke-dashoffset`), se rellena con glow
+neón y cierra con el wordmark en bloom — un solo movimiento continuo, en CSS puro. Se saltea con
+cualquier interacción (incluido `Tab`, para no dejar una capa opaca tabulable) y no se monta con
+`prefers-reduced-motion`. Reusa `alien-glyph.svg`, cubierto por `preloader-timing.test.ts` y un
+caso nuevo en `alien-glyph.test.ts`.
+
+**Pendiente real:** correr ALS-019 y confirmar con datos que el preloader ayuda o empeora la
+percepción — este ticket se dio por hecho sin esa verificación.
 
 ### ALS-042 — Cursor personalizado
 
@@ -625,27 +635,128 @@ Cursor con la identidad del sitio. Riesgos conocidos: puede degradar la usabilid
 táctil, y si tapa el cursor nativo en campos de formulario es directamente un problema. Solo con
 `@media (pointer: fine)` y sin tocar el formulario.
 
+### ALS-043 — Mazo apilable de Servicios
+
+- Prioridad: P2 · Esfuerzo: M · **Estado: Hecho**
+- Épica: I (refinamiento visual) · Sección afectada: Servicios (ALS-015)
+
+**Backlog corregido 2026-08-24:** el commit `4b1360d` ("prepara el terreno para el mazo apilable")
+referenciaba este ID desde el 2026-08-16 sin que existiera acá — un ticket fantasma, mismo tipo de
+gap que ADR-11 ya corrigió una vez para otro caso. Queda documentado completo recién ahora.
+
+En desktop (`MEDIA.DECK`, ≥1024px, coincide con el `lg` de Tailwind) las 10 cards de Servicios se
+apilan como un mazo con el scroll: abanico diagonal, 3-4 cards legibles a la vez, referencia visual
+el sitio de Lenis (lenis.darkroom.engineering). En mobile y con `prefers-reduced-motion` se
+mantiene la grilla simple original — es una decisión de layout, no de "hay o no movimiento": el
+mazo exige un recorrido de scroll largo que no tiene sentido imponerle a quien pidió menos
+movimiento, aunque Lenis y el resto del sitio ignoren esa preferencia a propósito (`f8d4623`).
+
+**Piezas nuevas:**
+- `src/shared/hooks/useMediaQuery.ts` — `useSyncExternalStore` sobre `matchMedia`, parametrizado
+  por query, con `subscribe`/`getSnapshot` cacheados por query en un `Map` a nivel de módulo (sin
+  eso, useSyncExternalStore ve funciones "nuevas" en cada render y se resuscribe en loop).
+- `src/shared/components/sections/ServiceCard.tsx` — el markup de una card, compartido entre
+  grilla y mazo vía `layout: "grid" | "deck"` — evita duplicar el JSX entre los dos layouts.
+- `src/shared/components/sections/ServiciosDeck.tsx` — el mazo: progreso de scroll medido UNA vez
+  sobre todo el contenedor (`useScroll` con `offset: ["start start", "end end"]`), cada card toma
+  su propio tramo `[índice/total, (índice+1)/total]` de ese progreso para `scale`/`opacity`
+  (`useTransform`) — medir cada card por separado no funciona, porque en cuanto queda `sticky`
+  respecto del viewport deja de moverse y su progreso se congela ahí. La última card nunca se
+  atenúa (nada la tapa arriba).
+- `Section.tsx` (`4b1360d`) — `overflow-hidden` → `overflow-clip`: `hidden` crea un contenedor de
+  scroll que anula cualquier `sticky` de adentro.
+
+**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle
+inicial: 158.89 kB gzip (línea base previa: 157.27 — el mazo reusa Framer Motion, ya en el bundle,
+así que el costo marginal es bajo; sigue en ámbar contra el umbral verde de 150 kB de
+`quality-gates.md` §2, no lo empeora de forma significativa).
+
+**Pendiente de QA visual manual** (no verificable desde este entorno): confirmar en navegador que
+el abanico se ve bien a 1024px y 1440px, que la última card no se atenúa, que ninguna card deja ver
+la de abajo, y recorrer el mazo completo con `Tab` confirmando que el anillo de foco de cada CTA no
+queda visualmente tapado por la card de encima.
+
 ---
 
 ## Épica J — Medición
 
-### ALS-023 — Analítica de conversión *(sale de diferidos)*
+### ALS-023 — Analítica de conversión con Google Analytics 4 *(sale de diferidos, alcance redefinido 2026-08-24)*
 
-- Prioridad: P2 · Esfuerzo: S · Estado: Propuesto — se activa después de ALS-022
+- Prioridad: **P1** · Esfuerzo: M · Estado: Propuesto — se activa después de ALS-022
 - HU-ANL-001 · CU-ANL-001 · RF-ANL-001, RNF-ANL-001
+- Decisión de herramienta cerrada: [ADR-15](./architecture.md#adr-15--analítica-de-conversión-con-ga4-estándar-supersede-la-restricción-de-als-023-2026-08-24)
 
 Estuvo diferido con un buen argumento: instrumentar sin tráfico es medir ruido. **Ese argumento
 vence el día que el sitio se publique.**
 
-Qué medir: visitas → clics por CTA (distinguiendo "Agenda tu sesión" de "Cotiza tu proyecto") →
-envíos válidos → aperturas de WhatsApp.
+Qué medir: visitas → clics por CTA (distinguiendo "Agenda tu sesión" de "Cotiza tu proyecto", por
+`tier`) → envíos válidos del formulario → aperturas de WhatsApp (incluyendo el caso ALS-018, popup
+bloqueado — es dato de embudo roto por el navegador, no ruido a descartar).
 
-**Restricción dura:** sin cookies, sin datos personales, **sin banner de consentimiento**. Un
-banner en una landing es fricción justo antes del CTA. Si la única forma de medir es degradando la
-experiencia, no se mide.
+**Restricción original superada por ADR-15 (2026-08-24).** La versión anterior de este ticket
+exigía "sin cookies, sin banner de consentimiento" — correcto para una landing sin objetivo de
+marketing medible explícito, que dejó de ser el caso: este es un sitio de marketing y necesita
+atribución de conversión confiable, no una aproximación. La decisión ahora es **GA4 estándar
+(cookies de primera parte) + un aviso de cookies mínimo, no bloqueante** (franja/toast con opción
+de rechazar, nunca un modal que tape el CTA). Ver ADR-15 para las alternativas descartadas
+(cookieless, Consent Mode denegado por defecto) y por qué.
 
-**Además desbloquea decisiones que hoy están trabadas:** ALS-024 (si el chunk 3D de 320 kB se
-justifica) y ALS-041 (si un preloader mejora o empeora).
+**Verificación pendiente antes de tráfico sostenido:** estado final de la Ley 21.719 (protección
+de datos, Chile) — puede exigir más que un aviso mínimo según cómo entre en régimen durante 2026.
+No bloquea implementar, sí bloquea darlo por "cerrado y listo para siempre".
+
+**Reglas de implementación:** cero PII (nombre, teléfono, contenido de `message` nunca viajan a
+GA4); el evento se dispara desde `useBookingForm`, no desde `Contacto.tsx` (el componente nunca
+orquesta); medir el peso que agrega el script de GA4 con la skill `lighthouse-audit` antes de
+cerrar — el bundle inicial ya está en amarillo (`quality-gates.md` §2). Guía completa de
+implementación: skill `analitica-conversion`.
+
+**Además desbloquea decisiones que hoy están trabadas:** ALS-024 (si el JS extra se justifica) y
+ALS-041 (si el preloader mejora o empeora la conversión).
+
+### ALS-044 — Sección Discografía: catálogo de Spotify en vivo
+
+- Prioridad: P2 · Esfuerzo: M · Estado: Propuesto
+- Épica: G · Bloqueado por: ALS-026 (Lambda de Spotify desplegada)
+
+Sección nueva, **distinta de Portfolio**. Portfolio sigue siendo curaduría editorial (los trabajos
+que ALIENSKILEZ elige destacar, con su rol y año); esta sección muestra el **catálogo completo y
+en vivo** del artista en Spotify — se actualiza solo cuando sale un lanzamiento nuevo, sin que
+alguien lo copie a mano en `constants/portfolio.ts`. Es el mismo problema que ADR-11 ya diagnosticó
+para el portfolio, aplicado a una sección con propósito propio en vez de a un dato suelto.
+
+**Alcance:**
+- Consume la Function URL de ALS-026 (no la Web API de Spotify directo — el secreto no puede
+  vivir en el bundle, ver ADR-11).
+- Wiring en `App.tsx` como sección nueva, con su propio anchor en `constants/sections.ts` — no se
+  cuelga del componente `Portfolio.tsx` existente.
+- Estado de carga propio (skeleton), igual criterio de "degradar, no romper" que ADR-6 aplica a
+  datos pendientes — acá aplicado a un estado "cargando" real, no a un placeholder de negocio.
+- Si la Function URL falla o no responde: fallback visible y no roto (nunca una sección vacía sin
+  explicación), mismo criterio que el resto del sitio.
+
+**Criterios de aceptación:** la sección lista los lanzamientos reales del Artist ID configurado,
+respeta `prefers-reduced-motion` si lleva cualquier reveal, y no bloquea el LCP del resto de la
+página (carga diferida, mismo patrón que el motor 3D del Hero).
+
+**No implementar antes de:** ALS-026 desplegado y probado — no tiene sentido construir el consumidor
+antes de que el productor de datos exista.
+
+### ALS-045 — Sección Video: catálogo de YouTube en vivo
+
+- Prioridad: P3 · Esfuerzo: M · Estado: Propuesto
+- Épica: G · Bloqueado por: ALS-027 (Lambda de YouTube desplegada) y, en la práctica, ALS-044
+  (mismo patrón de sección, tiene sentido resolverlo una vez y reutilizar el criterio, no en
+  paralelo)
+
+Mismo propósito que ALS-044, con la API de YouTube: sección nueva, catálogo en vivo, separada de
+Portfolio. Reutiliza el mismo patrón de skeleton/fallback que ALS-044 defina primero — no vale la
+pena inventar dos veces la misma solución de estado de carga.
+
+**Alcance:** igual estructura que ALS-044 (Function URL propia o segundo handler de la misma
+Lambda, ver ALS-027), sección propia en `App.tsx` con su anchor, carga diferida.
+
+**No implementar antes de:** ALS-027 desplegado y ALS-044 resuelto — en ese orden.
 
 ---
 
@@ -699,7 +810,7 @@ vista. Ver ADR-5.
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
 | ALS-022 | F     | P0     | S        | Pendiente                          | ALS-019, ALS-020                 |
-| ALS-023 | —     | —      | —        | Diferido                           | —                                |
+| ALS-023 | J     | **P1** | M        | Propuesto — herramienta cerrada (ADR-15) | ALS-022 (tráfico real)     |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | Pendiente — sin código todavía     | Cuenta AWS + Artist ID + ALS-031 |
@@ -708,6 +819,10 @@ vista. Ver ADR-5.
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
 | ALS-031 | G     | P2     | M        | Pendiente                          | Cuenta AWS del Productor         |
+| ALS-044 | G     | P2     | M        | Propuesto                          | ALS-026 desplegado               |
+| ALS-045 | G     | P3     | M        | Propuesto                          | ALS-027 desplegado, ALS-044      |
+| ALS-041 | I     | P3     | S        | ✅ Hecho — Lighthouse (ALS-019) todavía no corrido | — |
+| ALS-043 | I     | P2     | M        | ✅ Hecho — QA visual manual pendiente | —                |
 
 ### Alcance propuesto (mejoras, nada construido)
 
@@ -724,9 +839,10 @@ vista. Ver ADR-5.
 | ALS-038 | I | P3 | M | Waveform reactivo en el Hero | — |
 | ALS-039 | I | P3 | M | Transición entre secciones | — |
 | ALS-040 | I | P3 | S | Indicador de progreso de scroll | — |
-| ALS-041 | I | P3 | S | Preloader de marca | ALS-019 (decidir si suma) |
 | ALS-042 | I | P3 | S | Cursor personalizado | — |
-| ALS-023 | J | P2 | S | Analítica de conversión | ALS-022 (tráfico real) |
+| ALS-023 | J | **P1** | M | Analítica de conversión (GA4, ADR-15) | ALS-022 (tráfico real) |
+| ALS-044 | G | P2 | M | Sección Discografía (catálogo Spotify en vivo) | ALS-026 |
+| ALS-045 | G | P3 | M | Sección Video (catálogo YouTube en vivo) | ALS-027, ALS-044 |
 
 **Orden recomendado, si hay que elegir:**
 
@@ -735,18 +851,23 @@ vista. Ver ADR-5.
 2. **ALS-018** — cierra el único punto del embudo donde una falla es invisible y total.
 3. **ALS-033** — la mejora de más impacto en términos absolutos. El código es lo fácil; conseguir
    los pares de audio autorizados y con niveles emparejados es lo que la hace pesada.
-4. **ALS-023** — apenas haya tráfico. Desbloquea decisiones hoy trabadas (ALS-024, ALS-041).
-5. **ALS-026** — en cuanto el Productor entregue cuenta de AWS y Artist ID.
+4. **ALS-023** — apenas haya tráfico, ahora **P1**: sin esto, ALS-024 y ALS-041 no tienen forma de
+   resolverse con datos.
+5. **ALS-026** — en cuanto el Productor entregue cuenta de AWS y Artist ID. **ALS-044** es la
+   continuación natural una vez desplegado (mismo dato, sección propia en vez de Portfolio).
 6. **ALS-037** — en cuanto haya fotos.
-7. Todo lo demás de la Épica I, al final y sin apuro.
+7. **ALS-045** — después de ALS-044, no en paralelo (mismo patrón, resolverlo una sola vez).
+8. Todo lo demás de la Épica I, al final y sin apuro.
 
 **Una advertencia sobre la Épica I:** son seis tickets de acabado visual y ninguno hace que alguien
 escriba que no iba a escribir. Es la parte del backlog más fácil de empezar y la que menos rinde.
 Si el tiempo es escaso, ALS-037 (fotos reales) y nada más.
 
 **Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
-ALS-026, ALS-027 y ALS-031 son alcance nuevo que **mejora** el sitio pero no impide publicarlo — el sitio
-puede lanzarse con el portfolio manual actual y sumar la integración con Spotify después.
+ALS-026, ALS-027, ALS-031, ALS-044 y ALS-045 son alcance nuevo que **mejora** el sitio pero no
+impide publicarlo — el sitio puede lanzarse con el portfolio manual actual y sumar la integración
+con Spotify/YouTube después. ALS-023 (GA4) tampoco bloquea el lanzamiento, pero cuanto antes esté
+después de ALS-022, antes hay datos reales para decidir ALS-024 y ALS-041.
 
 ## 5. Gobernanza
 
