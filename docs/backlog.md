@@ -642,34 +642,63 @@ táctil, y si tapa el cursor nativo en campos de formulario es directamente un p
 
 **Backlog corregido 2026-08-24:** el commit `4b1360d` ("prepara el terreno para el mazo apilable")
 referenciaba este ID desde el 2026-08-16 sin que existiera acá — un ticket fantasma, mismo tipo de
-gap que ADR-11 ya corrigió una vez para otro caso. Queda documentado completo recién ahora.
+gap que ADR-11 ya corrigió una vez para otro caso.
 
 En desktop (`MEDIA.DECK`, ≥1024px, coincide con el `lg` de Tailwind) las 10 cards de Servicios se
-apilan como un mazo con el scroll: abanico diagonal, 3-4 cards legibles a la vez, referencia visual
-el sitio de Lenis (lenis.darkroom.engineering). En mobile y con `prefers-reduced-motion` se
-mantiene la grilla simple original — es una decisión de layout, no de "hay o no movimiento": el
-mazo exige un recorrido de scroll largo que no tiene sentido imponerle a quien pidió menos
-movimiento, aunque Lenis y el resto del sitio ignoren esa preferencia a propósito (`f8d4623`).
+apilan como un mazo con el scroll: abanico diagonal, varias cards legibles a la vez, un isotipo que
+gira mientras se espera la próxima card. Referencia visual: la sección "Lenis brings the heat" de
+lenis.darkroom.engineering. En mobile y con `prefers-reduced-motion` se mantiene la grilla simple
+original — decisión de layout, no de "hay o no movimiento": el mazo exige un recorrido de scroll
+largo que no tiene sentido imponerle a quien pidió menos movimiento, aunque Lenis y el resto del
+sitio ignoren esa preferencia a propósito (`f8d4623`).
+
+**Iteró dos veces sobre el mismo bug — vale la pena el registro:**
+
+1ª versión: cada card con su propio `position: sticky` en un bloque de `40vh`. Se veía como pila
+vertical con apenas un "canto" asomando, nunca el abanico — el usuario lo reportó comparando
+capturas reales. Causa: con `sticky` por card, cada una se suelta al terminar su propio tramo de
+scroll y la siguiente la reemplaza en secuencia — nunca hay más de una completamente visible a la
+vez, sin importar cuánto se agrandara el offset del abanico.
+
+Antes de la 2ª versión se navegó **lenis.darkroom.engineering con Playwright** (24 capturas,
+scrolleando la sección real en pasos de 200px) para verificar la mecánica en vez de asumirla: el
+offset entre cards es una fracción notoria del ancho de la card (no unos pocos px), el marco de una
+card tapada se queda 100% nítido — solo su contenido se atenúa —, el índice numérico nunca pierde
+opacidad, y la mano/isotipo ocupa la mayor parte del scroll entre una card y la siguiente (la card
+recién entra cerca del final de ese tramo).
+
+2ª versión (la actual): **un solo contenedor `sticky`** para todo el mazo (no uno por card), con
+cada card posicionada en absoluto adentro y animada por `transform` a un offset x/y **permanente**
+según su índice — se queda ahí, tapada por la siguiente, mientras dure el scroll fijado. Verificado
+con **Playwright contra el propio `npm run dev`** (no solo mirado en la referencia ajena): con
+`window.scrollTo()` crudo el resultado salía inconsistente porque Lenis pelea con saltos de scroll
+que no pasan por su propio loop; con scroll real (`mouse.wheel`, incremental) se confirmaron las 10
+cards apiladas en abanico, los índices nítidos, y el isotipo girando a la derecha del mazo.
 
 **Piezas nuevas:**
 - `src/shared/hooks/useMediaQuery.ts` — `useSyncExternalStore` sobre `matchMedia`, parametrizado
   por query, con `subscribe`/`getSnapshot` cacheados por query en un `Map` a nivel de módulo (sin
   eso, useSyncExternalStore ve funciones "nuevas" en cada render y se resuscribe en loop).
 - `src/shared/components/sections/ServiceCard.tsx` — el markup de una card, compartido entre
-  grilla y mazo vía `layout: "grid" | "deck"` — evita duplicar el JSX entre los dos layouts.
-- `src/shared/components/sections/ServiciosDeck.tsx` — el mazo: progreso de scroll medido UNA vez
-  sobre todo el contenedor (`useScroll` con `offset: ["start start", "end end"]`), cada card toma
-  su propio tramo `[índice/total, (índice+1)/total]` de ese progreso para `scale`/`opacity`
-  (`useTransform`) — medir cada card por separado no funciona, porque en cuanto queda `sticky`
-  respecto del viewport deja de moverse y su progreso se congela ahí. La última card nunca se
-  atenúa (nada la tapa arriba).
+  grilla y mazo vía `layout: "grid" | "deck"`. En `"deck"` suma el índice (`01`, `02`…, estilo
+  `Kicker`, nunca se atenúa) y `contentOpacity` (solo título/descripción/botón, no el marco).
+- `src/shared/components/sections/ServiciosDeck.tsx` — el mazo: un contenedor alto (pista de
+  scroll) con un único hijo `sticky`; adentro, cada card en absoluto con su offset final permanente
+  (`x`/`y`/`scale`/`opacity` vía `useTransform`, clamped antes y después de su propia ventana de
+  entrada) y un isotipo plano (`DeckAlien`) que gira en CSS (`rotateY`) atado al mismo progreso.
 - `Section.tsx` (`4b1360d`) — `overflow-hidden` → `overflow-clip`: `hidden` crea un contenedor de
   scroll que anula cualquier `sticky` de adentro.
 
 **Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle
-inicial: 158.89 kB gzip (línea base previa: 157.27 — el mazo reusa Framer Motion, ya en el bundle,
+inicial: 159.65 kB gzip (línea base previa: 157.27 — el mazo reusa Framer Motion, ya en el bundle,
 así que el costo marginal es bajo; sigue en ámbar contra el umbral verde de 150 kB de
-`quality-gates.md` §2, no lo empeora de forma significativa).
+`quality-gates.md` §2, no lo empeora de forma significativa). Verificado visualmente con Playwright
+contra `npm run dev`: abanico de 10 cards, grilla mobile sin cambios, foco de teclado sin decidir
+todavía si queda tapado por la card de encima (ver pendiente abajo).
+
+**Pendiente de QA manual real** (no verificable desde este entorno): recorrer el mazo completo con
+`Tab` en un navegador real y confirmar que el anillo de foco de cada CTA no queda visualmente
+tapado por la card de encima cuando el navegador no auto-scrollea al enfocar.
 
 **Pendiente de QA visual manual** (no verificable desde este entorno): confirmar en navegador que
 el abanico se ve bien a 1024px y 1440px, que la última card no se atenúa, que ninguna card deja ver
