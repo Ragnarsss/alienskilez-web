@@ -160,9 +160,13 @@ function DeckCard({
         rotate,
         scale,
         opacity,
-        // Por índice absoluto: la card recién entrada siempre tiene que
-        // quedar por encima de TODAS las anteriores en el orden de pintado.
-        zIndex: index,
+        // `index + 1`, no `index`: el isotipo detrás del mazo vive en
+        // `zIndex: 0` (ver `ServiciosDeck.tsx`) y un `zIndex` NEGATIVO en el
+        // wrapper del isotipo se escapaba de este contexto de apilamiento y
+        // terminaba pintado detrás del fondo de la propia sección — invisible
+        // del todo, no solo tapado. Manteniendo todo en el rango [0, total]
+        // sin negativos se evita ese escape.
+        zIndex: index + 1,
         width: LIMITS.SERVICES_DECK_CARD_WIDTH_PX,
         height: LIMITS.SERVICES_DECK_CARD_HEIGHT_PX,
       }}
@@ -193,10 +197,16 @@ function DeckCard({
  * normal — no en una columna aparte flotando junto al isotipo (esa fue la
  * 4ª versión: quedaba visualmente desconectado del resto).
  *
- * El isotipo 3D se superpone al mazo (esquina inferior derecha del
- * contenedor de cards, por encima de todas en `z-index`) — el mismo rol
- * espacial que la mano en la referencia: se sobrepone a las cards, no vive
- * aparte en su propia columna.
+ * El heading vive en su propia esquina arriba a la derecha (`absolute`, no
+ * en flujo con el mazo) — pedido explícito del usuario tras ver la 5ª
+ * iteración: el heading llevaba toda las versiones ancladas arriba a la
+ * izquierda, y quería el layout espejado (mazo a la izquierda, heading a la
+ * derecha), más parecido a cómo "LENIS BRINGS THE HEAT" se para en la
+ * referencia. El isotipo 3D vive DETRÁS de todo el mazo, centrado (`z-index`
+ * por debajo de TODAS las cards) — también pedido explícito: antes estaba
+ * delante, chico y en una esquina, desconectado de las cards; ahora gira
+ * grande detrás de ellas y se ve translúcido a través de las cards que
+ * tiene encima (`ServiceCard.tsx`, `bg-background/70` + `backdrop-blur-md`).
  */
 export function ServiciosDeck({
   headingId,
@@ -241,33 +251,54 @@ export function ServiciosDeck({
       style={{ height: `calc(${stickyHeightCss} + ${LIMITS.SERVICES_DECK_RUNWAY_VH}vh)` }}
     >
       <div ref={stickyRef} className="sticky top-0 flex min-h-[100svh] items-center pt-16 pb-8">
-        <div className="w-full">
+        <div className="relative w-full" style={{ minHeight: stackHeight }}>
           {/*
+            Esquina arriba a la derecha, `absolute` — no en flujo con el
+            mazo, para que las cards puedan ocupar la columna izquierda
+            completa por debajo/al lado sin que el heading les robe ancho
+            (esa era la 5ª versión: heading y mazo apilados en la misma
+            columna, compitiendo por el mismo presupuesto vertical).
             Tamaños FIJOS, no responsive (`text-3xl sm:text-4xl md:text-5xl`
             como el resto de `Section`): este componente solo se monta en
             `MEDIA.DECK` (≥1024px, ya por encima de `md`), así que las clases
-            para viewports más chicos nunca aplicarían — y el heading tiene
-            que competir por presupuesto vertical con el mazo dentro de UN
-            viewport (ver `SERVICES_DECK_CARD_HEIGHT_PX`), a diferencia del
-            header normal de `Section` que no tiene ese límite.
+            para viewports más chicos nunca aplicarían.
           */}
           <motion.header
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: LIMITS.REVEAL_DURATION_S, ease: "easeOut" }}
-            className="mb-6 max-w-2xl"
+            className="absolute top-0 right-0 z-20 max-w-md text-right"
           >
             <Kicker index="02" label={kicker} className="mb-3" />
             <h2 id={headingId} className="text-4xl leading-[1.1] font-semibold tracking-tight">
               {title}
             </h2>
             <p className="mt-4 text-base leading-relaxed text-text-muted">{description}</p>
-            <Button href={anchor(SECTION_IDS.CONTACTO)} variant="primary" size="md" className="mt-6">
-              {CTA.PRIMARY}
-            </Button>
+            <div className="mt-6 flex justify-end">
+              <Button href={anchor(SECTION_IDS.CONTACTO)} variant="primary" size="md">
+                {CTA.PRIMARY}
+              </Button>
+            </div>
           </motion.header>
 
-          <div className="relative mx-auto" style={{ width: stackWidth, height: stackHeight }}>
+          <div className="relative" style={{ width: stackWidth, height: stackHeight }}>
+            {/* Isotipo DETRÁS de todas las cards (`z-index` negativo, la
+                card con `zIndex` más bajo es 0) — grande y centrado en la
+                pila, girando de forma continua y visible a través de las
+                cards translúcidas que tiene encima (`ServiceCard.tsx`). El
+                posicionamiento va en este wrapper, NO en `AlienMark3D`
+                directo: el componente antepone `"relative"` a su propio
+                `className` (lo necesita para el `absolute` interno de
+                `FlatGlyph`/`Mark3DBoundary`) y `cn()` acá es un join simple
+                sin dedupe tipo tailwind-merge — pasarle clases de
+                posicionamiento directo perdía contra ese `"relative"`
+                (orden del stylesheet de Tailwind, no del string de clases). */}
+            <div
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+              style={{ zIndex: 0 }}
+            >
+              <AlienMark3D className="h-72 w-72" />
+            </div>
             {SERVICES.map((service, index) => (
               <DeckCard
                 key={service.id}
@@ -277,20 +308,6 @@ export function ServiciosDeck({
                 progress={scrollYProgress}
               />
             ))}
-            {/* Superpuesto a las cards (z-index por encima de todas: la
-                última tiene `zIndex: total - 1`), en la esquina donde cae la
-                card recién entrada — mismo rol espacial que la mano de la
-                referencia. El posicionamiento va en este wrapper, NO en
-                `AlienMark3D` directo: el componente antepone `"relative"` a
-                su propio `className` (lo necesita para el `absolute` interno
-                de `FlatGlyph`/`Mark3DBoundary`) y `cn()` acá es un join
-                simple sin dedupe tipo tailwind-merge — pasarle `"absolute"`
-                directo perdía contra ese `"relative"` (orden del stylesheet
-                de Tailwind, no del string de clases) y el isotipo terminaba
-                en flujo normal en vez de superpuesto. */}
-            <div className="pointer-events-none absolute -right-8 -bottom-10 z-50 h-56 w-56">
-              <AlienMark3D className="h-full w-full" />
-            </div>
           </div>
         </div>
       </div>

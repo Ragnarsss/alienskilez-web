@@ -26,6 +26,12 @@ import type { Service } from "@/shared/constants/services"
  * (cascada real de `x`/`y`/`rotate` en `ServiciosDeck.tsx`); atenuar el
  * contenido encima de eso se leía como cards "muertas" en vez de una pila
  * real de tarjetas.
+ *
+ * `layout="deck"` es translúcida (`bg-background/70` + `backdrop-blur-md`),
+ * no opaca: el isotipo 3D vive DETRÁS de todo el mazo (`ServiciosDeck.tsx`,
+ * pedido explícito del usuario — en versiones previas estaba delante, chico
+ * y desconectado) y tiene que verse, atenuado y desenfocado, a través de las
+ * cards que tiene encima, girando de forma continua.
  */
 export function ServiceCard({
   service,
@@ -39,7 +45,7 @@ export function ServiceCard({
 }) {
   if (layout === "deck") {
     return (
-      <article className="hud-frame flex h-full flex-col justify-between border border-border bg-background p-6 shadow-2xl shadow-black/50">
+      <article className="hud-frame flex h-full flex-col justify-between border border-border bg-background/60 p-6 shadow-2xl shadow-black/50">
         {index !== undefined && (
           <p className="font-display text-5xl font-bold text-accent" aria-hidden="true">
             {String(index + 1).padStart(2, "0")}

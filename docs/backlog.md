@@ -872,6 +872,75 @@ habiendo margen de que el ritmo del scroll o la intensidad de la rotación no co
 vivo, y en ese caso es una 6ª iteración de ajuste fino sobre una arquitectura que ahora sí coincide
 con la de la referencia, no otro replanteo estructural.
 
+**6ª iteración (2026-08-24) — el usuario anotó una captura propia del resultado de la 5ª con
+flechas señalando qué mover, y agregó feedback específico sobre transparencia, tamaño y
+dirección de la cascada:**
+
+1. **Falta transparencia** — pidió ver el isotipo GIRANDO A TRAVÉS de las cards, translúcido; la
+   5ª versión lo tenía superpuesto DELANTE de todo el mazo, opaco y en una esquina — chico y
+   desconectado.
+2. **Cards aún chicas.**
+3. **La cascada se leía como una curva/abanico**, no como una diagonal recta hacia abajo — "no se
+   ve mal, pero no es lo pedido".
+4. **Los textos (heading) siguen en el mismo lugar** — pidió que se muevan "del otro lado"; la
+   captura anotada del usuario mostraba una flecha desde el heading (arriba a la izquierda, donde
+   vivió en las 5 versiones previas) hacia una esquina vacía arriba a la derecha.
+5. **El isotipo mal colocado** — chico, delante de las cards; pidió que viva DETRÁS.
+
+**Qué cambió:**
+- **Heading movido a la esquina superior derecha** (`position: absolute`, `text-right`,
+  `max-w-md`), sacado del flujo vertical que compartía con el mazo — así el mazo ya no compite por
+  presupuesto de alto con el heading y puede ocupar toda la columna izquierda/centro. Es una
+  excepción deliberada al patrón de `Section` (kicker/título siempre a la izquierda en el resto del
+  sitio) — pedido explícito del usuario para esta sección puntual, documentado como tal en el
+  código, no una regla nueva para otras secciones.
+- **Isotipo detrás de TODAS las cards, grande (h-72, 288px) y centrado** en la pila — antes vivía
+  delante con `z-index` más alto que todas. Las cards pasaron a translúcidas
+  (`bg-background/60`, sin `backdrop-blur`) para que el isotipo se vea A TRAVÉS de ellas, girando
+  de forma continua y autónoma (mismo giro no atado a scroll que ya tenía, documentado y sin
+  cambios — `3dsvg` no expone rotación atada a un valor externo).
+- **Bug real encontrado en el camino: el isotipo simplemente NO SE VEÍA, ni siquiera opaco.**
+  El wrapper de posicionamiento usaba `zIndex: -1` para garantizar que quedara detrás de las
+  cards (`zIndex: 0..9`) — pero ese contenedor (y sus ancestros `relative`) no establecen su
+  propio contexto de apilamiento (no tienen `z-index` propio), así que el `-1` se "escapaba" hacia
+  arriba y terminaba comparándose contra el FONDO DE LA PROPIA SECCIÓN en vez de contra las
+  cards — invisible del todo, no solo tapado. Confirmado con `getBoundingClientRect()` +
+  `getComputedStyle()` (el elemento medía 288×288, opacity 1, pero no pintaba nada visible).
+  Fix: se corrieron TODOS los `zIndex` a un rango no-negativo (`isotipo: 0`, cards:
+  `index + 1`, es decir 1-10) — ya no hay ningún negativo que pueda escaparse.
+- **Cascada más diagonal, menos curva:** `SERVICES_DECK_FAN_STEP_X_PX` bajó de 80 a 55 y
+  `SERVICES_DECK_FAN_STEP_Y_PX` subió de 20 a 50 (el paso vertical ahora domina sobre el
+  horizontal, inclinando la cascada de "lateral" a "descendente"); `SERVICES_DECK_FAN_ROTATE_STEP_DEG`
+  bajó de 4 a 1.5 (con 4° el conjunto se leía como un abanico curvo — el usuario lo llamó "esa
+  curva" —; 1.5° sigue dando la sensación de cartas reales sin dominar sobre la traslación).
+- **Cards más grandes:** `SERVICES_DECK_CARD_WIDTH_PX` 280→320, `SERVICES_DECK_CARD_HEIGHT_PX`
+  340→380 — posible porque el heading ya no comparte columna vertical con el mazo.
+- Primer intento de la transparencia usó `backdrop-blur-md` + `bg-background/70`: el isotipo se
+  veía solo como un resplandor difuso, irreconocible como cabeza de alien (el propio `FlatGlyph`
+  ya lleva un `drop-shadow` de glow, y sumarle blur del backdrop encima doblaba el desenfoque).
+  Se sacó el `backdrop-blur` por completo y se bajó la opacidad del fondo de la card
+  (`bg-background/60`) — el isotipo se ve nítido y reconocible A TRAVÉS de la card, no como un
+  borrón.
+
+**Verificado con Playwright contra `npm run dev` (scroll real) en 1024px y 1440px:** el isotipo se
+ve claramente como silueta de cabeza de alien translúcida detrás de las cards en varios tramos del
+scroll (confirmado visualmente, no solo por DOM) — no en TODOS los frames, porque el isotipo queda
+centrado en un punto FIJO de la pila mientras las cards cascadean por encima/al lado, así que la
+superposición visual varía según qué card está al frente en cada momento (mismo comportamiento
+"a veces se ve más, a veces menos" que tendría cualquier elemento fijo detrás de un mazo que se
+mueve). Heading en la esquina superior derecha, cascada leyéndose como diagonal descendente, cards
+más grandes, sin overflow ni solapamiento a 1024px, grilla mobile sin regresión.
+
+**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle:
+160.42 kB gzip (sin cambio relevante).
+
+**Honestidad sobre lo que sigue sin verificarse:** el mismo pendiente de siempre — teclado real y
+anchos intermedios en navegador real. Punto nuevo a vigilar: la visibilidad del isotipo a través de
+las cards depende de en qué posición de la cascada esté cada card en cada momento del scroll (no es
+constante) — si al verlo en vivo se siente demasiado intermitente, subir el tamaño del isotipo o
+sumarle una animación de posición atada al scroll (hoy es autónoma, sin relación con el progreso)
+son los próximos candidatos, no otro replanteo de estructura.
+
 ---
 
 ## Épica J — Medición

@@ -54,17 +54,15 @@ export const LIMITS = {
    * real para repartir párrafos sin que se tapen. Proporción cercana a la
    * referencia (lenis.darkroom.engineering — cards altas, no cuadradas).
    */
-  SERVICES_DECK_CARD_WIDTH_PX: 280,
+  SERVICES_DECK_CARD_WIDTH_PX: 320,
   /**
    * Alto (px) de una card del mazo — ver `SERVICES_DECK_CARD_WIDTH_PX`.
-   * Presupuesto real verificado con Playwright: heading + CTA + esta altura
-   * + `SERVICES_DECK_VISIBLE_DEPTH * FAN_STEP_Y_PX` de cascada tienen que
-   * entrar en el `min-h-svh` del sticky SIN recortarse — el primer valor
-   * (380) se probó y la card de más atrás quedaba cortada contra el borde
-   * inferior del viewport en una pantalla de 900px de alto, así que bajó a
-   * este número junto con `FAN_STEP_Y_PX` más chico.
+   * Presupuesto real verificado con Playwright: el heading ahora vive en su
+   * propia esquina (arriba a la derecha, `ServiciosDeck.tsx`) y no compite
+   * en la misma columna vertical que el mazo, así que esta altura sube
+   * respecto a la iteración anterior sin recortarse contra el viewport.
    */
-  SERVICES_DECK_CARD_HEIGHT_PX: 340,
+  SERVICES_DECK_CARD_HEIGHT_PX: 380,
   /**
    * Cuántos PASOS hacia atrás en la cascada quedan visibles antes de que una
    * card desaparezca del todo — no cuántas cards, `+ 1` de esto (la recién
@@ -92,20 +90,25 @@ export const LIMITS = {
    * invertido (offset fijo por `index % slots`, la card nueva "saltaba" a
    * offset 0 de un slot reusado en vez de nacer ahí y retroceder).
    */
-  SERVICES_DECK_FAN_STEP_X_PX: 80,
-  /** Desplazamiento vertical (px) por paso de la cascada — mismo criterio que `SERVICES_DECK_FAN_STEP_X_PX`. */
-  SERVICES_DECK_FAN_STEP_Y_PX: 20,
+  SERVICES_DECK_FAN_STEP_X_PX: 55,
   /**
-   * Rotación (grados) por paso de la cascada — pieza que faltaba por
-   * completo en las iteraciones anteriores y es gran parte de por qué no se
-   * leía como un abanico de cartas real: en la referencia cada card está
-   * tirada con un ángulo levemente distinto, no solo desplazada en x/y. La
-   * card recién entrada (paso 0, al frente) no tiene rotación — se ve
-   * derecha, como recién puesta encima — y cada paso que retrocede suma
-   * este valor de tilt, hasta `VISIBLE_DEPTH * este valor` en la card más
-   * vieja todavía visible.
+   * Desplazamiento vertical (px) por paso de la cascada — mismo criterio que
+   * `SERVICES_DECK_FAN_STEP_X_PX`, pero deliberadamente MÁS GRANDE que el
+   * horizontal: el usuario pidió explícitamente que la pila se lea como una
+   * diagonal hacia ABAJO, no como el arco/curva que salía con un paso
+   * horizontal dominante — bajar `FAN_STEP_X_PX` y subir este valor inclina
+   * la dirección dominante de la cascada de "lateral" a "descendente".
    */
-  SERVICES_DECK_FAN_ROTATE_STEP_DEG: 4,
+  SERVICES_DECK_FAN_STEP_Y_PX: 50,
+  /**
+   * Rotación (grados) por paso de la cascada. Bajada de 4 a 1.5: con 4°, el
+   * conjunto de la pila se leía como un ABANICO curvo (el usuario lo llamó
+   * "esa curva") — se ve bien pero no es lo pedido, que es una diagonal
+   * recta hacia abajo. Un tilt más sutil sigue dando la sensación de
+   * "cartas reales, no un stack perfecto", sin dominar sobre la traslación
+   * y curvar la silueta del conjunto.
+   */
+  SERVICES_DECK_FAN_ROTATE_STEP_DEG: 1.5,
   /**
    * Distancia (px) desde la que una card SUBE hasta su posición de reposo
    * al entrar — "de abajo hacia arriba". Se suma SOLO durante la ventana de
