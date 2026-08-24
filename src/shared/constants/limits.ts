@@ -36,54 +36,102 @@ export const LIMITS = {
   /** Índice máximo que sigue sumando delay de stagger — evita que la última card de una grilla larga tarde de más. */
   REVEAL_STAGGER_MAX_INDEX: 5,
   /**
-   * Scroll (vh) que consume cada card del mazo de Servicios.
-   * Con 10 servicios, 40 deja el recorrido en ~4 pantallas: suficiente para
-   * que cada card se lea sola, sin convertir la sección en un túnel.
+   * Scroll (vh) que consume cada card del mazo de Servicios — el "beat"
+   * completo (espera + entrada), no la entrada sola.
+   * Bajado de 40 a 16: con 40, el tramo de espera (donde solo gira el
+   * isotipo, `1 - SERVICES_DECK_ENTRANCE_FRACTION` de cada beat) hacía la
+   * sección larguísima — el pin se sostenía mucho más de lo que el
+   * contenido necesitaba, mismo síntoma de fondo que el pin del Hero
+   * (879aef8), aunque ahí era el pin soltándose antes de tiempo y acá es
+   * al revés: sosteniéndose de más.
    */
-  SERVICES_DECK_BEAT_VH: 40,
+  SERVICES_DECK_BEAT_VH: 16,
   /** Alto (rem) al que se clava la primera card del mazo: despeja el navbar (h-16) con aire. */
   SERVICES_DECK_TOP_REM: 6,
   /**
-   * Desplazamiento vertical (px) por índice — el abanico diagonal.
-   * Referencia real medida contra lenis.darkroom.engineering (captura con
-   * Playwright): el offset entre cards ahí es una fracción notoria del alto
-   * de la card, no un "canto" de unos pocos píxeles — la primera versión de
-   * este valor (12px) se leía como pila vertical, no como abanico.
+   * Ancho (px) de una card del mazo. Deliberadamente angosta: solo lleva
+   * índice + título (ver ServiceCard.tsx), no descripción ni botón — con 10
+   * cards en abanico dentro de `Container` (`max-w-6xl`, la mitad del ancho
+   * cedida al isotipo) no hay espacio real para repartir párrafos sin que
+   * se tapen.
    */
-  SERVICES_DECK_FAN_STEP_Y_PX: 56,
-  /** Desplazamiento horizontal (px) por índice: convierte la pila en abanico. */
-  SERVICES_DECK_FAN_STEP_X_PX: 64,
+  SERVICES_DECK_CARD_WIDTH_PX: 300,
+  /**
+   * Cuántas cards quedan visibles a la vez (la actual + esta cantidad de
+   * anteriores) antes de que la más vieja desaparezca del todo. Con 10
+   * servicios y el ancho real de `Container` no entran las 10 en abanico sin
+   * que se conviertan en una franja ilegible de 40-50px cada una — la
+   * versión que dejaba las 10 acumuladas se veía como una mancha en el
+   * medio del mazo, ni siquiera las que estaban "tapadas pero legibles" se
+   * distinguían. Con esto, una card se desvanece por completo (no solo su
+   * título) en cuanto queda a más de esta profundidad de la card activa —
+   * el mazo nunca muestra más de `SERVICES_DECK_VISIBLE_DEPTH + 1` cards.
+   */
+  SERVICES_DECK_VISIBLE_DEPTH: 3,
+  /**
+   * Desplazamiento horizontal (px) por índice — el abanico diagonal. Con
+   * `SERVICES_DECK_VISIBLE_DEPTH` cards visibles a la vez (no las 10), el
+   * ancho a repartir es `SERVICES_DECK_CARD_WIDTH_PX +
+   * SERVICES_DECK_VISIBLE_DEPTH * este valor` — bastante menos que
+   * `SERVICES_DECK_CARD_WIDTH_PX * total`, así que el paso puede ser
+   * generoso sin desbordar la columna izquierda del mazo a 1024px (el
+   * breakpoint más angosto donde el mazo se activa, ≈730px de ancho real).
+   */
+  SERVICES_DECK_FAN_STEP_X_PX: 90,
+  /**
+   * Desplazamiento vertical PERMANENTE (px) por índice — el reposo final de
+   * cada card en el abanico. Chico a propósito frente al horizontal: es
+   * solo el "canto" que arma la diagonal, no de dónde viene la card al
+   * entrar (eso es `SERVICES_DECK_RISE_PX`).
+   */
+  SERVICES_DECK_FAN_STEP_Y_PX: 20,
+  /**
+   * Distancia (px) desde la que una card SUBE hasta su posición de reposo
+   * al entrar — "de abajo hacia arriba", no un deslizamiento diagonal desde
+   * la card anterior (esa fue la versión previa). Independiente del paso
+   * del abanico (`SERVICES_DECK_FAN_STEP_Y_PX`): esto es el recorrido de la
+   * animación de entrada, no el offset final entre cards.
+   */
+  SERVICES_DECK_RISE_PX: 64,
   /**
    * Escala a la que queda una card durante su propia entrada (0-1, sube a 1
-   * al terminar). Deliberadamente sutil: en la referencia el "encogimiento"
-   * no es perceptible — lo que separa una card tapada de una activa es que
-   * su contenido se atenúa (SERVICES_DECK_CONTENT_OPACITY_MIN), no su
-   * tamaño. Un scale más agresivo se probó y se leía como que la card se
-   * "rompía", no como profundidad.
+   * al terminar). Deliberadamente sutil — el "encogimiento" no es lo que
+   * separa una card tapada de una activa, es su opacidad
+   * (SERVICES_DECK_CONTENT_OPACITY_MIN). Un scale más agresivo se leía como
+   * que la card se "rompía", no como profundidad.
    */
   SERVICES_DECK_SCALE_MIN: 0.98,
   /**
-   * Opacidad mínima del CONTENIDO (título, descripción, botón) de una card
-   * ya tapada por la siguiente — no de la card completa. El marco
-   * (hud-frame + borde) se queda 100% nítido siempre; es lo que en la
-   * referencia mantiene el "mazo" legible como pila de tarjetas reales en
-   * vez de disolverse. El índice numérico de la card tampoco se atenúa
-   * nunca, mismo criterio que el "01/02/03" de la referencia.
+   * Opacidad mínima del título de una card ya tapada por la siguiente — no
+   * de la card completa. El marco (hud-frame + borde) se queda 100% nítido
+   * siempre, y el índice numérico tampoco se atenúa nunca — ambos son lo
+   * que mantiene el mazo legible como pila de cards reales. Bajo a
+   * propósito (casi invisible, no "atenuado pero legible"): con 10 cards
+   * superpuestas, varios títulos a la vez a media opacidad se acumulan en
+   * ruido visual — mejor que solo el título de la card activa se lea, y el
+   * resto quede como textura numerada.
    */
-  SERVICES_DECK_CONTENT_OPACITY_MIN: 0.35,
+  SERVICES_DECK_CONTENT_OPACITY_MIN: 0.08,
   /**
    * Fracción de un "beat" (1/total del progreso) que ocupa la animación de
    * entrada de una card — el resto del beat es el tramo "de espera" donde
-   * solo gira el isotipo (ver SERVICES_DECK_ALIEN_TURNS_PER_BEAT). En la
-   * referencia la mano gira gran parte del tramo entre una card y la
-   * siguiente, y la card recién entra cerca del final — no es un fundido
-   * parejo a lo largo de todo el beat.
+   * solo gira el isotipo. Subido de 0.24 a 0.4 junto con la baja de
+   * `SERVICES_DECK_BEAT_VH`: con la espera más corta, no hace falta que sea
+   * una fracción tan chica del beat para seguir sintiéndose "la mano gira,
+   * después entra la card" en vez de un fundido parejo.
    */
-  SERVICES_DECK_ENTRANCE_FRACTION: 0.24,
-  /** Vueltas completas que gira el isotipo por cada beat de scroll (1 = una vuelta entre card y card, como el brazo de la referencia). */
-  SERVICES_DECK_ALIEN_TURNS_PER_BEAT: 1,
-  /** Aire (vh) después de la última card del mazo, para no saltar de golpe a la sección siguiente. */
-  SERVICES_DECK_TAIL_VH: 15,
+  SERVICES_DECK_ENTRANCE_FRACTION: 0.4,
+  /**
+   * Aire (vh) después de que la ÚLTIMA card termina de entrar, antes de
+   * soltar el pin. Chico a propósito: la entrada de la última card ya
+   * termina justo al final del progreso del mazo (ver `entranceWindow` en
+   * `ServiciosDeck.tsx`), así que esto es solo un respiro de lectura, no un
+   * tramo muerto de scroll — el síntoma reportado (scroll de más después de
+   * que la última card ya apareció) era exactamente por tener este valor
+   * grande (15) sumado a que la última card terminaba su entrada al 90%
+   * del progreso, no al 100%.
+   */
+  SERVICES_DECK_TAIL_VH: 6,
 } as const
 
 /** Media queries con nombre. Ningún string de breakpoint suelto en los componentes. */
