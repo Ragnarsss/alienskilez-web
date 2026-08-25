@@ -410,10 +410,12 @@ ayuda a aparecer en búsquedas del tipo "productor musical La Serena".
 
 ### ALS-018 — Sin feedback si el navegador bloquea la pestaña emergente
 
-- Prioridad: P2 · Esfuerzo: S · Estado: Pendiente
+- Prioridad: **P1** · Esfuerzo: S · Estado: Pendiente
+- RF-BKG-007 · CU-BKG-002 (E2)
 
 `window.open` puede ser bloqueado por el navegador. Hoy el visitante completa el formulario, hace
-clic y **no pasa nada visible** — cree que envió algo cuando no envió nada.
+clic y **no pasa nada visible** — cree que envió algo cuando no envió nada. Es el único punto del
+embudo donde una falla es invisible y total, y de ahí la prioridad.
 
 Solución propuesta: comprobar el valor de retorno de `window.open`; si es `null`, mostrar el enlace
 `wa.me` como fallback clicable en vez de fallar en silencio.
@@ -460,7 +462,7 @@ tendría dónde aplicarse.
 
 ### ALS-022 — Despliegue inicial
 
-- Prioridad: **P0** · Esfuerzo: S · Estado: Pendiente (bloqueado por ALS-001)
+- Prioridad: **P0** · Esfuerzo: S · Estado: Pendiente (bloqueado por ALS-019, ALS-020)
 
 Vercel o Netlify conectado al repositorio; build `npm run build`, salida `dist/`. Sitio 100%
 estático, sin variables de entorno.
@@ -547,18 +549,6 @@ Productor una ronda completa de repreguntas.
 **Criterios:** un enlace válido viaja en el mensaje como línea propia; uno inválido se rechaza con
 motivo; vacío se omite.
 
-### ALS-018 — Fallback si el navegador bloquea la pestaña *(ya existía, se promueve)*
-
-- Prioridad: **P1** (sube desde P2) · Esfuerzo: S · Estado: Pendiente
-- RF-BKG-007 · CU-BKG-002 E2
-
-Sube de prioridad porque es el **único punto del embudo donde una falla es invisible y total**: el
-visitante completa el formulario, hace clic, no pasa nada, y se va creyendo que envió algo.
-
-**Criterios:** con emergentes bloqueadas aparece un enlace clicable al mismo chat.
-
----
-
 ## Épica I — Refinamiento visual (estético)
 
 Mejoras de acabado. Todas **P3 salvo la primera**, y con una advertencia honesta: ninguna de estas
@@ -610,8 +600,7 @@ largo, saber cuánto falta reduce el abandono.
 
 ### ALS-041 — Preloader de marca
 
-- Prioridad: P3 · Esfuerzo: S · **Estado: Hecho** *(commit `3de33fb`, backlog corregido 2026-08-24 —
-  se cerró en código sin actualizar este documento en el mismo commit, contra la regla de §5)*
+- Prioridad: P3 · Esfuerzo: S · **Estado: Hecho** (`3de33fb`)
 
 **Ojo con este:** un preloader *agrega* tiempo percibido a cambio de una impresión de marca. En una
 landing de conversión suele ser mala idea. La decisión de construirlo igual **no esperó** a los
@@ -638,346 +627,100 @@ táctil, y si tapa el cursor nativo en campos de formulario es directamente un p
 ### ALS-043 — Mazo apilable de Servicios
 
 - Prioridad: P2 · Esfuerzo: M · **Estado: Hecho**
-- Épica: I (refinamiento visual) · Sección afectada: Servicios (ALS-015)
+- HU-SRV-001 · RF-SRV-001 · Extiende ALS-015 · Épica I
 
-**Backlog corregido 2026-08-24:** el commit `4b1360d` ("prepara el terreno para el mazo apilable")
-referenciaba este ID desde el 2026-08-16 sin que existiera acá — un ticket fantasma, mismo tipo de
-gap que ADR-11 ya corrigió una vez para otro caso.
+En desktop (`MEDIA.DECK`, ≥1024px) las 10 cards de Servicios se apilan como un mazo con el scroll:
+cascada diagonal descendente, cada card sube desde abajo a su lugar, y el isotipo 3D translúcido
+gira detrás de la pila. En mobile y con `prefers-reduced-motion` se mantiene la grilla simple con
+descripción y CTA por servicio — es una decisión de **layout**, no de "hay o no movimiento": el
+mazo exige un recorrido de scroll que no tiene sentido imponerle a quien pidió menos movimiento.
 
-En desktop (`MEDIA.DECK`, ≥1024px, coincide con el `lg` de Tailwind) las 10 cards de Servicios se
-apilan como un mazo con el scroll: abanico diagonal, cada card sube desde abajo a su lugar, un
-isotipo 3D que gira mientras se espera la próxima. Referencia visual: la sección "Lenis brings the
-heat" de lenis.darkroom.engineering. En mobile y con `prefers-reduced-motion` se mantiene la grilla
-simple original (con descripción y CTA por servicio) — decisión de layout, no de "hay o no
-movimiento": el mazo exige un recorrido de scroll que no tiene sentido imponerle a quien pidió menos
-movimiento, aunque Lenis y el resto del sitio ignoren esa preferencia a propósito (`f8d4623`).
+Referencia visual: la sección "Lenis brings the heat" de lenis.darkroom.engineering.
 
-**Tres iteraciones sobre el mismo componente — vale la pena el registro completo, cada una con una
-causa real, no estética:**
+**Criterios verificados:** hasta 4 cards simultáneas en cascada; entrada de abajo hacia arriba;
+isotipo girando y reconocible a través de las cards; sin overflow ni solapamiento a 1024px; la
+grilla mobile no cambia. La altura de la sección bajó de 4232px a 1991px (−53%).
 
-**1ª versión:** cada card con su propio `position: sticky` en un bloque de `40vh`. Se veía como pila
-vertical con apenas un "canto" asomando, nunca el abanico. Causa: con `sticky` por card, cada una se
-suelta al terminar su propio tramo de scroll y la siguiente la reemplaza en secuencia — nunca hay
-más de una completamente visible a la vez, sin importar cuánto se agrandara el offset. Antes de
-corregirla se navegó **lenis.darkroom.engineering con Playwright** (24 capturas) para verificar la
-mecánica real en vez de asumirla.
+**Sigue abierto:** la visibilidad del isotipo detrás del mazo es intermitente por diseño — queda
+fijo mientras las cards cascadean por encima, así que la superposición varía según el tramo del
+scroll. Si al verlo en vivo se siente demasiado intermitente, los candidatos son agrandar el
+isotipo o atar su posición al progreso del scroll (hoy es autónoma), no replantear la estructura.
 
-**2ª versión:** un solo contenedor `sticky` para todo el mazo, cada card en absoluto adentro
-animada por `transform` a un offset x/y permanente, deslizándose en diagonal desde la posición de
-la anterior. Arregló el abanico, pero con las 10 cards (con descripción y botón propio) acumuladas
-a la vez en un ancho de `Container` compartido con el isotipo, el resultado era una mancha de texto
-ilegible en el centro del mazo — reportado con captura anotada. Verificado el diagnóstico con
-**Playwright contra el propio `npm run dev`**: con `window.scrollTo()` crudo el resultado salía
-inconsistente porque Lenis pelea con saltos de scroll que no pasan por su propio loop; con scroll
-real (`mouse.wheel`, incremental) se confirmó que sí eran las 10 cards simultáneas, no un glitch de
-captura.
+**QA pendiente:** teclado real y anchos intermedios en navegador — se cubre en ALS-019 y ALS-020,
+no acá.
 
-**3ª versión (la actual), cuatro correcciones sobre la 2ª:**
-- **Sin CTA por card.** Con 10 servicios de tiers distintos no tiene sentido un botón "Agenda tu
-  sesión"/"Cotiza tu proyecto" repetido diez veces apuntando al mismo `#contacto` — uno solo,
-  general, fijo junto al isotipo.
-- **Cards angostas, solo índice + título** (`ServiceCard.tsx`, `layout="deck"`) — sin descripción.
-  La cuenta real: `Container` (`max-w-6xl`) menos el isotipo deja ~730px a 1024px de viewport (el
-  breakpoint más angosto donde el mazo se activa); repartir 10 párrafos ahí sin que se tapen no es
-  posible. El detalle completo de cada servicio sigue en la grilla — el mazo es la pieza de
-  impacto, no la ficha técnica.
-- **Solo `SERVICES_DECK_VISIBLE_DEPTH` (3) cards visibles a la vez**, no las 10 acumuladas: una card
-  desaparece del todo (no solo se atenúa) al quedar más de esa profundidad detrás de la activa. Es
-  lo que resuelve la mancha ilegible de la 2ª versión — nunca hay más de 4 cards compitiendo por
-  atención.
-- **Entrada de abajo hacia arriba**, no diagonal desde la card anterior: `x` es fijo (el paso del
-  abanico no se anima), `y` sube desde `restY + SERVICES_DECK_RISE_PX` hasta su reposo. La versión
-  anterior deslizaba en diagonal y se leía como "cae de arriba", no como abanico.
-- **Isotipo 3D real** (`AlienMark3D.tsx`, nuevo, factorizado de `HeroMark3D.tsx` sin tocar ese
-  archivo — su historial de cuatro reescrituras por fallos silenciosos, ADR-12, hace que cualquier
-  refactor ahí sea riesgo real). El chunk de `3dsvg` (~320 kB gzip) se pide una sola vez por
-  *specifier*; una segunda instancia en Servicios reusa el chunk ya cacheado, no lo vuelve a
-  descargar — verificado comparando el build antes/después (el chunk `dist-*.js` no cambió de
-  tamaño). Gira de forma autónoma (`animate="spin"`, mismo criterio que el Hero) — 3dsvg no expone
-  una forma de atar la rotación a un valor externo como el progreso de scroll.
-- **Sección más corta y sin scroll muerto al final.** `SERVICES_DECK_BEAT_VH` bajó de 40 a 16 y
-  `SERVICES_DECK_TAIL_VH` de 15 a 6 — con el tramo de espera (solo el isotipo girando) ocupando la
-  mayor parte de cada beat, 40vh × 10 cards hacía la sección larguísima. Además, la ventana de
-  entrada de la ÚLTIMA card ahora termina en progreso `1.0` exacto (antes terminaba en `0.9`,
-  dejando un 10% del scroll fijado sin que pasara nada antes de soltar el pin) — mismo tipo de
-  desajuste entre pin y contenido que tuvo el Hero (`879aef8`), aunque ahí el pin se soltaba antes
-  de tiempo y acá era al revés: se sostenía de más.
-
-**Piezas nuevas:**
-- `src/shared/hooks/useMediaQuery.ts` — `useSyncExternalStore` sobre `matchMedia`, parametrizado
-  por query, con `subscribe`/`getSnapshot` cacheados por query en un `Map` a nivel de módulo.
-- `src/shared/components/ui/AlienMark3D.tsx` — isotipo 3D reutilizable (boundary + fallback plano +
-  `Suspense`), usado acá y potencialmente en cualquier otro lugar que necesite el mismo giro.
-- `src/shared/components/sections/ServiceCard.tsx` — `layout: "grid" | "deck"`; `"deck"` es índice +
-  título únicamente, con `contentOpacity` animada solo sobre el título (el marco se queda nítido
-  siempre).
-- `src/shared/components/sections/ServiciosDeck.tsx` — el mazo: contenedor alto (pista de scroll)
-  con un único hijo `sticky`; cada card en absoluto con `x` fijo y `y`/`scale`/`opacity` animados
-  por `useTransform` sobre su propia ventana de entrada, más una segunda ventana de "desaparición"
-  a `SERVICES_DECK_VISIBLE_DEPTH` cards de profundidad.
-- `Section.tsx` (`4b1360d`) — `overflow-hidden` → `overflow-clip`: `hidden` crea un contenedor de
-  scroll que anula cualquier `sticky` de adentro.
-
-**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle
-inicial: 159.87 kB gzip (línea base previa a ALS-043: 157.27 — sigue en ámbar contra el umbral verde
-de 150 kB de `quality-gates.md` §2, no lo empeora de forma significativa; el chunk 3D no creció).
-Verificado visualmente con Playwright contra `npm run dev` con scroll real (`mouse.wheel`, no
-`scrollTo` crudo — Lenis lo pelea): abanico de hasta 4 cards simultáneas, entrada de abajo hacia
-arriba, isotipo 3D real girando, altura de la sección Servicios bajó de 4232px a 1991px (-53%).
-
-**Rugosidad menor observada, no bloqueante:** la entrada de la ÚLTIMA card puede quedar visualmente
-ajustada contra el borde inferior de la sección justo cuando el pin se suelta — no es un corte
-duro, pero no está tan pulido como el resto de las transiciones. Candidato a ajuste fino si al
-verlo en navegador real molesta.
-
-**Pendiente de QA manual real** (no verificable desde este entorno): recorrer el mazo completo con
-`Tab` en un navegador real y confirmar que el anillo de foco de cada CTA no queda visualmente
-tapado por la card de encima cuando el navegador no auto-scrollea al enfocar. Con el CTA único ya
-fuera de las cards, esto se reduce a un solo botón (el general), pero sigue sin verificarse con
-teclado real.
-
-**Pendiente de QA visual manual** (no verificable desde este entorno): confirmar en navegador que
-el abanico se ve bien a 1024px y 1440px, que la última card no se atenúa, que ninguna card deja ver
-la de abajo, y recorrer el mazo completo con `Tab` confirmando que el anillo de foco de cada CTA no
-queda visualmente tapado por la card de encima.
-
-**4ª iteración (2026-08-24) — replanteo de estructura, no ajuste de constantes.** Las tres
-iteraciones anteriores arreglaron bugs reales sobre una arquitectura que seguía sin parecerse a la
-referencia (lenis.darkroom.engineering). Diagnóstico honesto de lo que estaba mal, confirmado
-comparando capturas propias contra la referencia:
-
-1. **La sección no medía un viewport, medía una pista de scroll `BEAT_VH * total + TAIL_VH`**
-   (166vh, atada al conteo de servicios) con el pin sostenido mucho más de lo necesario y el
-   contenido apenas ocupando una esquina — nunca llenaba la pantalla como el Hero.
-2. **El heading de la sección ("Lo que se puede contratar") vivía en el header normal de
-   `Section`**, contenido de flujo normal que scrollea y desaparece ANTES de que el pin del mazo
-   siquiera se activara — el pin no se engancha hasta que su wrapper llega al tope del viewport,
-   así que el heading ya se había ido para entonces.
-3. **Bug real de solapamiento:** `restX = index * FAN_STEP_X_PX` usaba el índice ABSOLUTO (0-9), no
-   la profundidad visible. La card "09 · Marketing" (índice 8) caía a `8 * 90 = 720px` del borde
-   izquierdo — bien adentro de la columna del isotipo/CTA a la derecha del mazo. Con solo
-   `SERVICES_DECK_VISIBLE_DEPTH` (3) cards visibles a la vez y las demás ya desvanecidas del todo,
-   ese slot del abanico estaba libre para reusarse.
-
-**Qué cambió (estructura, no números):**
-- **Pin clonado del Hero, no reinventado.** `ServiciosDeck.tsx` ahora usa el mismo esqueleto que
-  `Hero.tsx`: alto del wrapper = `calc(alturaMedidaDelSticky + RUNWAY_VH)` (`useMeasuredHeightPx`,
-  no una pista atada al conteo de servicios), `useScroll` con offset `["start start",
-  "${RUNWAY}vh start"]` (no `"end end"`), y el sticky interno en `min-h-[100svh] flex items-center`
-  — el contenido llena una pantalla real, centrado, no un stack chico anclado con `top: Nrem`.
-  `SERVICES_DECK_RUNWAY_VH` (160, fijo) reemplaza a `SERVICES_DECK_BEAT_VH` / `_TAIL_VH`:
-  `entranceWindow` reparte el progreso 0→1 en fracciones iguales sin importar el conteo de
-  servicios, así que desacoplar el runway del conteo solo cambia la velocidad de scroll por card,
-  no el ritmo relativo entre ellas.
-- **El heading vive DENTRO del sticky del mazo**, no en el header normal de `Section`. Nueva prop
-  `ariaLabelledBy` en `Section.tsx` para cuando `title` no se le pasa porque el propio `children` lo
-  renderiza — mantiene la sección etiquetada para a11y sin duplicar el heading visualmente.
-  `Servicios.tsx` centraliza kicker/title/description en constantes de módulo y se los pasa a
-  `ServiciosDeck` en modo mazo, o a `Section` en modo grilla (sin cambios ahí).
-- **Fix del solapamiento: offset del abanico por profundidad visible, no por índice absoluto.**
-  `fanSlot = index % (SERVICES_DECK_VISIBLE_DEPTH + 1)` — como una card ya desapareció del todo
-  pasada esa profundidad, su slot queda libre para la siguiente. El abanico nunca ocupa más que
-  `VISIBLE_DEPTH` pasos de ancho sin importar el índice, verificado con Playwright en 1024px y
-  1440px: la card "09 · Marketing" y la "10 · Construcción de estudios" nunca invaden la columna
-  del isotipo/CTA.
-- Tamaños subidos con criterio (no ajuste fino a ciegas): `CARD_WIDTH_PX` 300→320, isotipo
-  `h-36 w-36`→`h-48 w-48`, `FAN_STEP_X_PX` 90→110, `FAN_STEP_Y_PX` 20→26, `RISE_PX` 64→72 — el mazo
-  usa más del ancho/alto real disponible dentro de `Container`, verificado que sigue entrando a
-  1024px (~960px de ancho interior) sin desbordar.
-- **Fix menor de borde:** la card 0 usaba una ventana de entrada `[0, 0.0001]` que en progreso
-  EXACTO 0 (el primer frame del pin, antes de cualquier scroll) mapeaba al extremo inferior del
-  rango → opacidad 0, invisible. Cambiado a `[-0.0001, 0]` así progreso 0 ya cae en el extremo
-  superior (opacidad 1) — la card 0 se ve desde el primer frame, sin depender de un scroll mínimo.
-
-**Verificado con Playwright contra `npm run dev` (scroll real, `mouse.wheel`) antes de dar el
-ticket por resuelto** — no solo los gates automatizados:
-- El heading se mantiene fijo en pantalla durante todo el pin: medido con
-  `getBoundingClientRect().top` del `<h2>` en cada tick de scroll, se mantuvo en el mismo píxel
-  (217.97) durante ~1200px de scroll (el tramo "stuck" real), con una transición de entrada/salida
-  breve a cada lado — mismo comportamiento que el Hero.
-- Sin solapamiento del CTA con ninguna card, en 1024px y 1440px, en todo el recorrido del mazo.
-- La última card ("10 · Construcción de estudios") termina su entrada justo cuando el pin suelta —
-  sin tramo de scroll muerto antes de pasar a Portfolio.
-
-**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle:
-160.30 kB gzip (sin cambio relevante respecto a la 3ª iteración, 159.87 kB — sigue en ámbar contra
-el umbral verde de 150 kB, no lo empeora).
-
-**Honestidad sobre lo que sigue sin verificarse** (no verificable desde este entorno): QA con
-teclado real (`Tab` por el CTA único, confirmar que el foco no se tape visualmente) y una revisión
-en navegador real a anchos intermedios entre 1024 y 1440px. La comparación visual contra la
-referencia fue por captura de Playwright, no por ojo humano en el sitio real — si al verlo en
-navegador algo sigue sin convencer (tamaño relativo del isotipo, ritmo del scroll), es candidato a
-una 5ª iteración, no algo que este registro deba maquillar como "perfecto".
-
-**5ª iteración (2026-08-24) — el usuario mandó captura de la referencia real y marcó que la 4ª
-seguía sin parecerse.** Comparando directamente contra la captura de
-lenis.darkroom.engineering ("LENIS BRINGS THE HEAT"), tres cosas de la 4ª versión estaban mal, no
-solo desajustadas:
-
-1. **Sin rotación.** La 4ª versión solo animaba `x`/`y` — la referencia tira cada card con un
-   ángulo levemente distinto, es gran parte de por qué se lee como un abanico de cartas real.
-2. **Cascada al revés.** La 4ª versión reusaba un slot fijo por `index % slots`: la card recién
-   entrada "saltaba" a offset 0 mientras las viejas quedaban con más offset — invertido respecto a
-   la referencia, donde la card MÁS RECIENTE es la que más se desplazó (y la que queda al frente),
-   y las viejas apenas se movieron de la esquina de anclaje.
-3. **Contenido atenuado.** La 4ª versión bajaba la opacidad del título de toda card tapada
-   (`SERVICES_DECK_CONTENT_OPACITY_MIN`) — se leía como cards "muertas". La referencia muestra las
-   cards de atrás NÍTIDAS, solo recortadas físicamente por la de encima.
-4. El isotipo vivía en su propia columna a la derecha, desconectado de las cards — la referencia
-   tiene la mano DIRECTAMENTE superpuesta al abanico.
-
-**Qué cambió (reescritura del mecanismo de cascada, no ajuste de números):**
-- `ServiciosDeck.tsx`: cada card ahora viaja por una cascada real de `x`/`y`/`rotate` construida
-  con `cascadeBreakpoints` — arranca en el paso 0 (offset 0, sin rotación, exactamente en la
-  esquina de anclaje `right-0 bottom-0` del mazo) y retrocede un paso completo cada vez que la
-  SIGUIENTE card entra, hasta desvanecerse tras agotar `SERVICES_DECK_VISIBLE_DEPTH` pasos. Los
-  tres motion values comparten los mismos breakpoints (`entranceWindow` de cada card siguiente) y
-  solo cambian de signo/magnitud por parámetro.
-- `ServiceCard.tsx` (variante `deck`): se sacó `contentOpacity` — ninguna card tapada se atenúa,
-  el índice pasó a ser un número grande (`text-5xl`, color acento) al estilo "01/02" de la
-  referencia, con el título abajo (`justify-between`, la card ahora tiene alto real propio,
-  `SERVICES_DECK_CARD_HEIGHT_PX`, no solo lo que ocupe el contenido).
-- El isotipo 3D pasó a vivir DENTRO del mismo contenedor relativo que las cards, superpuesto en la
-  esquina donde cae la card recién entrada (`z-index` por encima de todas). El CTA general se movió
-  al flujo normal debajo de la descripción del heading — ya no flota en una columna aparte junto al
-  isotipo (esa desconexión visual era parte de la queja).
-- **Bug real encontrado y corregido en el camino:** `AlienMark3D` antepone `"relative"` a su propio
-  `className` (lo necesita para el `absolute` interno de su boundary/fallback), y `cn()` en este
-  proyecto es un join simple sin dedupe tipo tailwind-merge — pasarle clases de posicionamiento
-  (`absolute -right-8 -bottom-10 ...`) directo a `AlienMark3D` perdía contra ese `"relative"` (orden
-  del stylesheet de Tailwind, no del string de clases) y el isotipo terminaba en flujo normal,
-  lejos de donde debía superponerse. Fix: el posicionamiento va en un `<div>` wrapper alrededor de
-  `<AlienMark3D>`, nunca en clases pasadas directo al componente.
-- Presupuesto vertical reajustado con números reales medidos (no a ojo): el heading pasó a tamaños
-  fijos (`text-4xl`, sin las variantes `sm:`/`md:` que nunca aplican porque el mazo solo se monta
-  ≥1024px) y `SERVICES_DECK_CARD_HEIGHT_PX` bajó de 380 a 340 — un primer intento con 380 dejaba la
-  card de más atrás recortada contra el borde inferior en una ventana de 900px de alto, confirmado
-  midiendo `getBoundingClientRect()` de la card real con Playwright, no estimando.
-
-**Verificado con Playwright contra `npm run dev` (scroll real) en 1024px y 1440px, antes de dar el
-ticket por resuelto:** cascada con rotación visible y creciente hacia atrás, card recién entrada
-nítida y al frente sin atenuación, isotipo correctamente superpuesto a la esquina del abanico
-(confirmado con `getBoundingClientRect()`, no solo la captura), CTA en flujo normal sin
-solapamiento, última card ("10 · Construcción de estudios") termina justo cuando el pin suelta,
-grilla mobile sin regresión (capturada en 390px, sin preloader de por medio).
-
-**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle:
-160.39 kB gzip (sin cambio relevante).
-
-**Honestidad sobre lo que sigue sin verificarse:** igual que la 4ª — QA con teclado real y anchos
-intermedios en navegador real, no solo capturas. La comparación con la referencia se hizo por
-capturas propias contra la imagen que mandó el usuario, no lado a lado en el mismo visor — sigue
-habiendo margen de que el ritmo del scroll o la intensidad de la rotación no convenzan al verlo en
-vivo, y en ese caso es una 6ª iteración de ajuste fino sobre una arquitectura que ahora sí coincide
-con la de la referencia, no otro replanteo estructural.
-
-**6ª iteración (2026-08-24) — el usuario anotó una captura propia del resultado de la 5ª con
-flechas señalando qué mover, y agregó feedback específico sobre transparencia, tamaño y
-dirección de la cascada:**
-
-1. **Falta transparencia** — pidió ver el isotipo GIRANDO A TRAVÉS de las cards, translúcido; la
-   5ª versión lo tenía superpuesto DELANTE de todo el mazo, opaco y en una esquina — chico y
-   desconectado.
-2. **Cards aún chicas.**
-3. **La cascada se leía como una curva/abanico**, no como una diagonal recta hacia abajo — "no se
-   ve mal, pero no es lo pedido".
-4. **Los textos (heading) siguen en el mismo lugar** — pidió que se muevan "del otro lado"; la
-   captura anotada del usuario mostraba una flecha desde el heading (arriba a la izquierda, donde
-   vivió en las 5 versiones previas) hacia una esquina vacía arriba a la derecha.
-5. **El isotipo mal colocado** — chico, delante de las cards; pidió que viva DETRÁS.
-
-**Qué cambió:**
-- **Heading movido a la esquina superior derecha** (`position: absolute`, `text-right`,
-  `max-w-md`), sacado del flujo vertical que compartía con el mazo — así el mazo ya no compite por
-  presupuesto de alto con el heading y puede ocupar toda la columna izquierda/centro. Es una
-  excepción deliberada al patrón de `Section` (kicker/título siempre a la izquierda en el resto del
-  sitio) — pedido explícito del usuario para esta sección puntual, documentado como tal en el
-  código, no una regla nueva para otras secciones.
-- **Isotipo detrás de TODAS las cards, grande (h-72, 288px) y centrado** en la pila — antes vivía
-  delante con `z-index` más alto que todas. Las cards pasaron a translúcidas
-  (`bg-background/60`, sin `backdrop-blur`) para que el isotipo se vea A TRAVÉS de ellas, girando
-  de forma continua y autónoma (mismo giro no atado a scroll que ya tenía, documentado y sin
-  cambios — `3dsvg` no expone rotación atada a un valor externo).
-- **Bug real encontrado en el camino: el isotipo simplemente NO SE VEÍA, ni siquiera opaco.**
-  El wrapper de posicionamiento usaba `zIndex: -1` para garantizar que quedara detrás de las
-  cards (`zIndex: 0..9`) — pero ese contenedor (y sus ancestros `relative`) no establecen su
-  propio contexto de apilamiento (no tienen `z-index` propio), así que el `-1` se "escapaba" hacia
-  arriba y terminaba comparándose contra el FONDO DE LA PROPIA SECCIÓN en vez de contra las
-  cards — invisible del todo, no solo tapado. Confirmado con `getBoundingClientRect()` +
-  `getComputedStyle()` (el elemento medía 288×288, opacity 1, pero no pintaba nada visible).
-  Fix: se corrieron TODOS los `zIndex` a un rango no-negativo (`isotipo: 0`, cards:
-  `index + 1`, es decir 1-10) — ya no hay ningún negativo que pueda escaparse.
-- **Cascada más diagonal, menos curva:** `SERVICES_DECK_FAN_STEP_X_PX` bajó de 80 a 55 y
-  `SERVICES_DECK_FAN_STEP_Y_PX` subió de 20 a 50 (el paso vertical ahora domina sobre el
-  horizontal, inclinando la cascada de "lateral" a "descendente"); `SERVICES_DECK_FAN_ROTATE_STEP_DEG`
-  bajó de 4 a 1.5 (con 4° el conjunto se leía como un abanico curvo — el usuario lo llamó "esa
-  curva" —; 1.5° sigue dando la sensación de cartas reales sin dominar sobre la traslación).
-- **Cards más grandes:** `SERVICES_DECK_CARD_WIDTH_PX` 280→320, `SERVICES_DECK_CARD_HEIGHT_PX`
-  340→380 — posible porque el heading ya no comparte columna vertical con el mazo.
-- Primer intento de la transparencia usó `backdrop-blur-md` + `bg-background/70`: el isotipo se
-  veía solo como un resplandor difuso, irreconocible como cabeza de alien (el propio `FlatGlyph`
-  ya lleva un `drop-shadow` de glow, y sumarle blur del backdrop encima doblaba el desenfoque).
-  Se sacó el `backdrop-blur` por completo y se bajó la opacidad del fondo de la card
-  (`bg-background/60`) — el isotipo se ve nítido y reconocible A TRAVÉS de la card, no como un
-  borrón.
-
-**Verificado con Playwright contra `npm run dev` (scroll real) en 1024px y 1440px:** el isotipo se
-ve claramente como silueta de cabeza de alien translúcida detrás de las cards en varios tramos del
-scroll (confirmado visualmente, no solo por DOM) — no en TODOS los frames, porque el isotipo queda
-centrado en un punto FIJO de la pila mientras las cards cascadean por encima/al lado, así que la
-superposición visual varía según qué card está al frente en cada momento (mismo comportamiento
-"a veces se ve más, a veces menos" que tendría cualquier elemento fijo detrás de un mazo que se
-mueve). Heading en la esquina superior derecha, cascada leyéndose como diagonal descendente, cards
-más grandes, sin overflow ni solapamiento a 1024px, grilla mobile sin regresión.
-
-**Criterios verificados:** `npm run lint`, `npm test` (33/33) y `npm run build` limpios. Bundle:
-160.42 kB gzip (sin cambio relevante).
-
-**Honestidad sobre lo que sigue sin verificarse:** el mismo pendiente de siempre — teclado real y
-anchos intermedios en navegador real. Punto nuevo a vigilar: la visibilidad del isotipo a través de
-las cards depende de en qué posición de la cascada esté cada card en cada momento del scroll (no es
-constante) — si al verlo en vivo se siente demasiado intermitente, subir el tamaño del isotipo o
-sumarle una animación de posición atada al scroll (hoy es autónoma, sin relación con el progreso)
-son los próximos candidatos, no otro replanteo de estructura.
+> **Sobre el tamaño de esta ficha.** Ocupaba 308 líneas con el registro de cinco iteraciones del
+> componente, cada una repitiendo sus cifras de bundle y su corrida de `lint`/`test`/`build`. Se
+> redujo aplicando la anatomía de ticket de §5: la evolución vive en los commits
+> (`c242989` → `65d7481` → `65c774c` → `ce1f5db` → `4cb14e4` → `4c5af36`), los parámetros y su
+> porqué en los comentarios de `constants/limits.ts`, y las cifras de bundle en `quality-gates.md`.
 
 ---
 
 ## Épica J — Medición
 
-### ALS-023 — Analítica de conversión con Google Analytics 4 *(sale de diferidos, alcance redefinido 2026-08-24)*
+### ALS-023 — Analítica de conversión con Google Analytics 4 *(implementado 2026-08-24)*
 
-- Prioridad: **P1** · Esfuerzo: M · Estado: Propuesto — se activa después de ALS-022
+- Prioridad: **P1** · Esfuerzo: M · Estado: **Implementado — pendiente verificación manual con
+  Measurement ID real** (ver checklist abajo)
 - HU-ANL-001 · CU-ANL-001 · RF-ANL-001, RNF-ANL-001
 - Decisión de herramienta cerrada: [ADR-15](./architecture.md#adr-15--analítica-de-conversión-con-ga4-estándar-supersede-la-restricción-de-als-023-2026-08-24)
 
-Estuvo diferido con un buen argumento: instrumentar sin tráfico es medir ruido. **Ese argumento
-vence el día que el sitio se publique.**
+Se desbloqueó: el sitio ya está desplegado (AWS S3), así que el argumento de "instrumentar sin
+tráfico es medir ruido" dejó de aplicar.
 
-Qué medir: visitas → clics por CTA (distinguiendo "Agenda tu sesión" de "Cotiza tu proyecto", por
-`tier`) → envíos válidos del formulario → aperturas de WhatsApp (incluyendo el caso ALS-018, popup
-bloqueado — es dato de embudo roto por el navegador, no ruido a descartar).
+**Qué mide:** visitas (page view automático de GA4) → clic por CTA, con `tier` ("sesion"/"proyecto")
+→ envío válido del formulario (post-validación de zod) → apertura de WhatsApp, incluyendo el caso
+de popup bloqueado por el navegador (mismo caso que ALS-018) como evento propio en vez de silencio.
 
 **Restricción original superada por ADR-15 (2026-08-24).** La versión anterior de este ticket
 exigía "sin cookies, sin banner de consentimiento" — correcto para una landing sin objetivo de
-marketing medible explícito, que dejó de ser el caso: este es un sitio de marketing y necesita
-atribución de conversión confiable, no una aproximación. La decisión ahora es **GA4 estándar
-(cookies de primera parte) + un aviso de cookies mínimo, no bloqueante** (franja/toast con opción
-de rechazar, nunca un modal que tape el CTA). Ver ADR-15 para las alternativas descartadas
-(cookieless, Consent Mode denegado por defecto) y por qué.
+marketing medible explícito, que dejó de ser el caso. La decisión ahora es **GA4 estándar (cookies
+de primera parte) + un aviso de cookies mínimo, no bloqueante**.
 
-**Verificación pendiente antes de tráfico sostenido:** estado final de la Ley 21.719 (protección
-de datos, Chile) — puede exigir más que un aviso mínimo según cómo entre en régimen durante 2026.
-No bloquea implementar, sí bloquea darlo por "cerrado y listo para siempre".
+**Implementación (código, verificada con `npm run lint && npm test && npm run build`, los tres
+limpios):**
+- `src/shared/lib/consent.ts` — store de la decisión de cookies (`localStorage`), función pura
+  `parseConsentValue` testeada.
+- `src/shared/hooks/useCookieConsent.ts` — expone el estado vía `useSyncExternalStore`.
+- `src/shared/components/ui/CookieConsent.tsx` — franja fija, no bloqueante, con "Aceptar" y
+  "Rechazar" reales (rechazar no manda ningún evento).
+- `src/shared/lib/analytics.ts` — `loadGtag()` (carga `gtag.js` async, diferida, recién cuando hay
+  consentimiento otorgado) y `trackEvent()`/`trackCtaClick()`. Gate puro `shouldSendEvent`
+  testeado aparte del DOM.
+- Los 4 puntos de CTA (`Hero.tsx`, `Navbar.tsx`, `ServiceCard.tsx`, `ServiciosDeck.tsx`) llaman
+  `trackCtaClick(tier)` en su `onClick` — sigue siendo el componente delegando el evento, no
+  armando lógica de negocio.
+- `useBookingForm.ts` dispara `booking_form_submit` al pasar la validación, y
+  `whatsapp_open`/`whatsapp_blocked` según el resultado de `window.open`. Se sacó `noopener`/
+  `noreferrer` del string de features de `window.open` (con cualquiera de los dos, el valor de
+  retorno es *siempre* `null` por spec — no se puede distinguir bloqueo real) y en su lugar se
+  anula `popup.opener = null` a mano: mismo blindaje contra reverse tabnabbing, con un valor de
+  retorno que sí sirve para medir. **Esto es una mejora de la base de ALS-018, no lo cierra**:
+  sigue sin existir el enlace `wa.me` visible de respaldo que pide ese ticket.
+- Cero PII: ningún evento lleva `fullName`, `preferredDate` ni `message` — solo `tier`.
+- `.env.example` documenta `VITE_GA_MEASUREMENT_ID`. Sin ese valor configurado (o con el
+  placeholder), `IS_GA_PLACEHOLDER` apaga `trackEvent`/`loadGtag` en silencio — no rompe nada, pero
+  tampoco mide nada.
 
-**Reglas de implementación:** cero PII (nombre, teléfono, contenido de `message` nunca viajan a
-GA4); el evento se dispara desde `useBookingForm`, no desde `Contacto.tsx` (el componente nunca
-orquesta); medir el peso que agrega el script de GA4 con la skill `lighthouse-audit` antes de
-cerrar — el bundle inicial ya está en amarillo (`quality-gates.md` §2). Guía completa de
-implementación: skill `analitica-conversion`.
+**Pendiente, no verificable desde acá — bloquea marcar "Hecho" de verdad:**
+1. **Configurar el Measurement ID real** de la propiedad GA4 en el entorno de build/deploy
+   (`VITE_GA_MEASUREMENT_ID`) — hoy sigue en placeholder.
+2. **Prueba manual del embudo completo con GA4 Realtime abierto**: visitar el sitio desplegado,
+   aceptar el aviso, clickear un CTA de cada tier, completar y enviar el formulario, confirmar que
+   `cta_click`, `booking_form_submit` y `whatsapp_open` aparecen en Realtime. Ninguna sesión de
+   este agente tiene acceso a una cuenta de GA4 ni a un navegador real para hacerlo.
+3. **Lighthouse completo** (mobile + desktop): este entorno no tiene Chrome instalado, así que solo
+   se pudo medir el tamaño de bundle vía `npm run build` (JS inicial subió de 157.27 kB a 161.24 kB
+   gzip — sigue en amarillo, no cruza a rojo; el detalle está en `quality-gates.md` §2). Falta
+   correr `npx lighthouse` de verdad para Performance/Accessibility/LCP/CLS/INP.
+4. **Estado de la Ley 21.719** (protección de datos, Chile): verificado hoy (2026-08-24) — **entra
+   en vigencia el 1 de diciembre de 2026**, todavía no rige. El aviso mínimo de ADR-15 sigue siendo
+   válido por ahora, pero hay que revisar esto de nuevo antes de esa fecha — no es un cierre
+   definitivo, es una alarma con vencimiento.
 
-**Además desbloquea decisiones que hoy están trabadas:** ALS-024 (si el JS extra se justifica) y
-ALS-041 (si el preloader mejora o empeora la conversión).
+**Además desbloquea, una vez completado el checklist de arriba:** ALS-024 (si el JS extra se
+justifica) y ALS-041 (si el preloader mejora o empeora la conversión).
 
 ### ALS-044 — Sección Discografía: catálogo de Spotify en vivo
 
@@ -1075,7 +818,7 @@ vista. Ver ADR-5.
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
 | ALS-022 | F     | P0     | S        | Pendiente                          | ALS-019, ALS-020                 |
-| ALS-023 | J     | **P1** | M        | Propuesto — herramienta cerrada (ADR-15) | ALS-022 (tráfico real)     |
+| ALS-023 | J     | **P1** | M        | Implementado — falta Measurement ID real + verificación manual | — |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | Pendiente — sin código todavía     | Cuenta AWS + Artist ID + ALS-031 |
@@ -1084,6 +827,7 @@ vista. Ver ADR-5.
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
 | ALS-031 | G     | P2     | M        | Pendiente                          | Cuenta AWS del Productor         |
+| ALS-032 | G     | P2     | L        | ✅ Hecho                           | —                                |
 | ALS-044 | G     | P2     | M        | Propuesto                          | ALS-026 desplegado               |
 | ALS-045 | G     | P3     | M        | Propuesto                          | ALS-027 desplegado, ALS-044      |
 | ALS-041 | I     | P3     | S        | ✅ Hecho — Lighthouse (ALS-019) todavía no corrido | — |
@@ -1097,17 +841,11 @@ vista. Ver ADR-5.
 | ALS-034 | H | P2 | M | Reproductor persistente al scrollear | ALS-033 |
 | ALS-035 | H | P2 | M | Testimonios en audio o video | ALS-005 |
 | ALS-036 | H | P2 | S | Referencia de sonido en el formulario | — |
-| ALS-026 | G | **P1** | M | Catálogo real desde Spotify | Cuenta AWS + Artist ID |
-| ALS-027 | G | P2 | M | Catálogo desde YouTube | ALS-026 |
-| ALS-031 | G | P2 | M | Infraestructura AWS (IaC) | Cuenta AWS |
 | ALS-037 | I | P2 | S | Fotos reales del estudio | ALS-006 (fotos) |
 | ALS-038 | I | P3 | M | Waveform reactivo en el Hero | — |
 | ALS-039 | I | P3 | M | Transición entre secciones | — |
 | ALS-040 | I | P3 | S | Indicador de progreso de scroll | — |
 | ALS-042 | I | P3 | S | Cursor personalizado | — |
-| ALS-023 | J | **P1** | M | Analítica de conversión (GA4, ADR-15) | ALS-022 (tráfico real) |
-| ALS-044 | G | P2 | M | Sección Discografía (catálogo Spotify en vivo) | ALS-026 |
-| ALS-045 | G | P3 | M | Sección Video (catálogo YouTube en vivo) | ALS-027, ALS-044 |
 
 **Orden recomendado, si hay que elegir:**
 
@@ -1116,8 +854,8 @@ vista. Ver ADR-5.
 2. **ALS-018** — cierra el único punto del embudo donde una falla es invisible y total.
 3. **ALS-033** — la mejora de más impacto en términos absolutos. El código es lo fácil; conseguir
    los pares de audio autorizados y con niveles emparejados es lo que la hace pesada.
-4. **ALS-023** — apenas haya tráfico, ahora **P1**: sin esto, ALS-024 y ALS-041 no tienen forma de
-   resolverse con datos.
+4. **ALS-023** — el código ya está, falta configurar el Measurement ID real y verificar el embudo
+   en GA4 Realtime: sin eso, ALS-024 y ALS-041 no tienen forma de resolverse con datos.
 5. **ALS-026** — en cuanto el Productor entregue cuenta de AWS y Artist ID. **ALS-044** es la
    continuación natural una vez desplegado (mismo dato, sección propia en vez de Portfolio).
 6. **ALS-037** — en cuanto haya fotos.
@@ -1135,6 +873,33 @@ con Spotify/YouTube después. ALS-023 (GA4) tampoco bloquea el lanzamiento, pero
 después de ALS-022, antes hay datos reales para decidir ALS-024 y ALS-041.
 
 ## 5. Gobernanza
+
+### Anatomía de un ticket
+
+Cinco bloques y nada más:
+
+1. **Encabezado** — Prioridad · Esfuerzo · Estado
+2. **Trazabilidad** — HU / CU / RF / ADR que lo justifican
+3. **Qué es** — dos a cuatro líneas: qué capacidad entrega
+4. **Criterios de aceptación** — verificables y específicos de *este* ticket
+5. **Bloqueado por** — si aplica
+
+**Lo que NO va en un ticket, y dónde vive de verdad:**
+
+| No va | Vive en |
+|---|---|
+| Historial de iteraciones sobre el mismo componente | Los commits |
+| Resultados de `lint` / `test` / `build` | Es la DoD, aplica a todos por igual |
+| Cifras de bundle | [`quality-gates.md`](./quality-gates.md) §2 |
+| Justificación de una decisión de diseño | Un ADR o [`design-system.md`](./design-system.md) |
+| Parámetros y su porqué | Los comentarios del código (`constants/limits.ts`) |
+| Notas sobre ediciones de este documento | El historial de git |
+
+**Regla práctica:** un ticket que no entra en ~25 líneas casi siempre son varios tickets, o tiene
+adentro algo que pertenece a otro documento. Este backlog es un documento vivo, pero "vivo" es que
+cambian los estados y se agregan tickets — no que cada ticket acumule su propio changelog.
+
+
 
 1. Todo bug o mejora que aparezca se agrega con ID `ALS` correlativo, en la épica que corresponda.
 2. Ningún ticket P0/P1 se cierra sin su criterio verificado de verdad — no "debería andar".
