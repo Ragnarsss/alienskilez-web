@@ -473,6 +473,41 @@ ALS-001 (bloqueante original) ya está cerrado. Lo que queda antes de este ticke
 **Criterios:** dominio resolviendo; checklist final de [`quality-gates.md`](./quality-gates.md) §7
 completo.
 
+**Actualización 2026-08-25 — el destino real cambió:** el sitio terminó en **AWS S3 + CloudFront**
+primero, y ahora se está migrando a **AWS Amplify Hosting** conectado a
+`github.com/Ragnarsss/alienskilez-web` (rama `main`), no Vercel/Netlify como decía el texto
+original de este ticket. Tampoco es cierto ya que sea "sin variables de entorno": ALS-023 agregó
+`VITE_GA_MEASUREMENT_ID`, configurada como variable de entorno en la propia consola de Amplify (ver
+`.env.example`). Este ticket sigue sin actualizarse a fondo con ese cambio de infraestructura —
+pendiente, no urgente mientras el deploy funcione.
+
+### ALS-046 — Pipeline de CI en GitHub Actions *(propuesto 2026-08-25, dispara la reversión de una ADR)*
+
+- Prioridad: P2 · Esfuerzo: S · Estado: Propuesto — **no implementado todavía**
+
+**Por qué aparece:** el primer build real en Amplify (conectando ALS-023) falló — no por un bug de
+código, sino porque el nombre de la variable de entorno se cargó con un espacio al final en la
+consola de Amplify (`VITE_GA_MEASUREMENT_ID ` en vez de `VITE_GA_MEASUREMENT_ID`), y eso rompió el
+`define` de Vite en build time. `lint`/`test`/`build` locales no lo hubieran detectado igual (es un
+dato de la consola de Amplify, no del código), pero expone que hoy **nada corre automático antes de
+que Amplify intente construir** — el primer lugar donde un error de build se nota es en el propio
+deploy fallido.
+
+**Esto revierte una decisión ya tomada, no es solo "agregar un archivo".**
+`architecture.md` §7 registra **"Sin pipeline de CI bloqueante"** como deuda consciente, con su
+propio criterio de cuándo reevaluarla: *"si el sitio crece o si toca el código más de una
+persona."* Antes de implementar esto hace falta una ADR nueva (skill `nueva-adr`) que registre por
+qué se revierte esa decisión — no alcanza con el pipeline en sí.
+
+**Alcance pendiente de decidir (con el usuario, no a criterio propio):** un workflow de GitHub
+Actions que corra `npm run lint && npm test && npm run build` en cada push/PR — **bloqueante** en
+`main` (falla el check, no se debería mergear) fue la opción que se puso sobre la mesa pero todavía
+no se confirmó el alcance final.
+
+**Límite honesto:** un CI así detecta regresiones de código, pero **no** hubiera atrapado el bug
+puntual que lo disparó (config de la consola de Amplify) salvo que el propio workflow buildee con
+las mismas variables de entorno que usa Amplify — a definir si vale la pena esa duplicación.
+
 ---
 
 ---
@@ -822,8 +857,9 @@ vista. Ver ADR-5.
 | ALS-019 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
-| ALS-022 | F     | P0     | S        | Pendiente                          | ALS-019, ALS-020                 |
-| ALS-023 | J     | **P1** | M        | Implementado — falta Measurement ID real + verificación manual | — |
+| ALS-022 | F     | P0     | S        | En curso — migrando de S3 a AWS Amplify (ver nota en el ticket) | ALS-019, ALS-020 |
+| ALS-023 | J     | **P1** | M        | Implementado, Measurement ID real cargado — falta verificación manual en GA4 Realtime tras el primer deploy exitoso a Amplify | — |
+| ALS-046 | F     | P2     | S        | Propuesto — revierte una ADR, no implementar sin ADR nueva | — |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | Pendiente — sin código todavía     | Cuenta AWS + Artist ID + ALS-031 |
