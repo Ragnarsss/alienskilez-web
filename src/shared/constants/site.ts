@@ -17,9 +17,8 @@ export const SITE = {
  * - Instagram: handle confirmado por el cliente (@alienskilez).
  * - YouTube: construido desde el mismo seudónimo asumiendo handle moderno
  *   (@alienskilez). Verificar que la URL resuelva antes del deploy.
- * - Spotify: la URL de artista usa un ID opaco que no se puede derivar del
- *   nombre. `pending: true` hace que el enlace NO se renderice hasta tener
- *   la URL real, en vez de publicar un link roto.
+ * - Spotify: resuelto (2026-08-25, ALS-002) — mismo Artist ID confirmado por
+ *   el cliente que usa la Lambda del catálogo (ALS-026).
  */
 export const SOCIALS = [
   {
@@ -40,8 +39,7 @@ export const SOCIALS = [
     id: "spotify",
     label: "Spotify",
     handle: "ALIENSKILEZ",
-    // TODO: reemplazar por la URL real del perfil de artista en Spotify.
-    url: "",
-    pending: true,
+    url: "https://open.spotify.com/artist/4ECRbTEyjiRHTs4c7CuwbD",
+    pending: false,
   },
 ] as const

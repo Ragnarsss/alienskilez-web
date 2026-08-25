@@ -1,6 +1,7 @@
 import { MotionConfig } from "framer-motion"
 import { Alcance } from "@/shared/components/sections/Alcance"
 import { Contacto } from "@/shared/components/sections/Contacto"
+import { Discografia } from "@/shared/components/sections/Discografia"
 import { Estudio } from "@/shared/components/sections/Estudio"
 import { Faq } from "@/shared/components/sections/Faq"
 import { Footer } from "@/shared/components/sections/Footer"
@@ -41,6 +42,7 @@ export default function App() {
         <Estudio />
         <Servicios />
         <Portfolio />
+        <Discografia />
         <Alcance />
         <Proceso />
         <Testimonios />

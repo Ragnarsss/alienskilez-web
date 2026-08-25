@@ -7,7 +7,7 @@ export function Testimonios() {
   return (
     <Section
       id={SECTION_IDS.TESTIMONIOS}
-      index="06"
+      index="07"
       kicker="TESTIMONIOS"
       tone="surface-alt"
       geometry="shards"

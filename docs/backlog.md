@@ -54,16 +54,15 @@ ALS-002). Business suma catálogo, respuestas rápidas y estadísticas que el pe
 
 ### ALS-002 — URL del perfil de Spotify
 
-- Prioridad: P2 · Esfuerzo: S · Estado: Pendiente
+- Prioridad: P2 · Esfuerzo: S · Estado: Parcial — Spotify resuelto (2026-08-25), falta YouTube
 
-La URL de artista de Spotify usa un ID opaco que no se puede derivar del seudónimo. Mientras
-`pending: true`, el enlace no se renderiza en el footer — un enlace roto cuesta más credibilidad
-que la ausencia del ícono.
+**Spotify: hecho.** El Artist ID real (el mismo que configura la Lambda de ALS-026) ya está cargado
+en `SITE.SOCIALS`, `pending: false`.
 
-También corresponde verificar que `youtube.com/@alienskilez` resuelva; se construyó asumiendo que
-el handle coincide con el de Instagram.
+**Falta:** verificar que `youtube.com/@alienskilez` resuelva; se construyó asumiendo que el handle
+coincide con el de Instagram, sin confirmarlo.
 
-**Criterios:** ambas URLs abren el perfil correcto; `pending` en `false`.
+**Criterios:** la URL de YouTube abre el perfil correcto.
 
 ### ALS-003 — Créditos reales del portfolio
 
@@ -262,8 +261,7 @@ reales, no placeholder); CORS restringido a `deotroplaneta.cl`; caché en memori
 es 50 (valor histórico) sino **10** — Spotify devolvía `400 Invalid limit` hasta que se verificó el
 valor actual contra la documentación viva. Detalle completo en el README de la función.
 
-**Desbloquea:** ALS-044 (sección Discografía del frontend, no implementada todavía — consume esta
-Function URL).
+**Desbloqueó:** ALS-044 (sección Discografía del frontend), hecho el mismo día.
 
 ### ALS-027 — Integración con YouTube (mismo patrón que ALS-026)
 
@@ -752,8 +750,8 @@ justifica) y ALS-041 (si el preloader mejora o empeora la conversión).
 
 ### ALS-044 — Sección Discografía: catálogo de Spotify en vivo
 
-- Prioridad: P2 · Esfuerzo: M · Estado: Propuesto — **desbloqueado** (ALS-026 ya desplegada)
-- Épica: G · Function URL real anotada en `aws/spotify-catalog/README.md`
+- Prioridad: P2 · Esfuerzo: M · **Estado: Hecho** (2026-08-25)
+- Épica: G
 
 Sección nueva, **distinta de Portfolio**. Portfolio sigue siendo curaduría editorial (los trabajos
 que ALIENSKILEZ elige destacar, con su rol y año); esta sección muestra el **catálogo completo y
@@ -761,35 +759,36 @@ en vivo** del artista en Spotify — se actualiza solo cuando sale un lanzamient
 alguien lo copie a mano en `constants/portfolio.ts`. Es el mismo problema que ADR-11 ya diagnosticó
 para el portfolio, aplicado a una sección con propósito propio en vez de a un dato suelto.
 
-**Alcance:**
-- Consume la Function URL de ALS-026 (no la Web API de Spotify directo — el secreto no puede
-  vivir en el bundle, ver ADR-11).
-- Wiring en `App.tsx` como sección nueva, con su propio anchor en `constants/sections.ts` — no se
-  cuelga del componente `Portfolio.tsx` existente.
-- Estado de carga propio (skeleton), igual criterio de "degradar, no romper" que ADR-6 aplica a
-  datos pendientes — acá aplicado a un estado "cargando" real, no a un placeholder de negocio.
-- Si la Function URL falla o no responde: fallback visible y no roto (nunca una sección vacía sin
-  explicación), mismo criterio que el resto del sitio.
+**Implementación:**
+- `Discografia.tsx` (nueva, después de Portfolio en `App.tsx`) consume la Function URL de ALS-026
+  vía `useDiscografia` (`features/discografia/`) — nunca la Web API de Spotify directo, el secreto
+  no vive en el bundle (ADR-11).
+- `parseDiscographyCatalog` valida en runtime la forma de la respuesta antes de confiar en ella
+  (con test — ver `src/test/discografia.test.ts`): una respuesta con forma inesperada cae al mismo
+  fallback que un error de red, no rompe la sección.
+- Tres estados: skeleton mientras carga, grilla de lanzamientos reales si hay datos, fallback con
+  link a Spotify si la Function URL falla, no está configurada, o el catálogo viene vacío — nunca
+  una sección vacía sin explicación.
+- `VITE_SPOTIFY_CATALOG_URL` nueva en `.env.example` — pública por diseño, no es un secreto.
+- De paso resuelve la mitad de ALS-002: el link de Spotify en `SITE.SOCIALS` ya no es `pending`
+  (mismo Artist ID real que usa la Lambda).
 
-**Criterios de aceptación:** la sección lista los lanzamientos reales del Artist ID configurado,
-respeta `prefers-reduced-motion` si lleva cualquier reveal, y no bloquea el LCP del resto de la
-página (carga diferida, mismo patrón que el motor 3D del Hero).
+**Verificado:** catálogo real de ALIENSKILEZ visible en `npm run dev` (CORS de la Function URL
+ampliado a `localhost:5173` para desarrollo); `lint`/`test` (47)/`build` limpios.
 
 ### ALS-045 — Sección Video: catálogo de YouTube en vivo
 
 - Prioridad: P3 · Esfuerzo: M · Estado: Propuesto
-- Épica: G · Bloqueado por: ALS-027 (Lambda de YouTube desplegada) y, en la práctica, ALS-044
-  (mismo patrón de sección, tiene sentido resolverlo una vez y reutilizar el criterio, no en
-  paralelo)
+- Épica: G · Bloqueado por: ALS-027 (Lambda de YouTube desplegada)
 
-Mismo propósito que ALS-044, con la API de YouTube: sección nueva, catálogo en vivo, separada de
-Portfolio. Reutiliza el mismo patrón de skeleton/fallback que ALS-044 defina primero — no vale la
-pena inventar dos veces la misma solución de estado de carga.
+Mismo propósito que ALS-044 (ya hecho — sección nueva, catálogo en vivo, separada de Portfolio),
+con la API de YouTube. Reutiliza el mismo patrón de skeleton/fallback (`useDiscografia` es la
+referencia directa) — no vale la pena inventar dos veces la misma solución de estado de carga.
 
 **Alcance:** igual estructura que ALS-044 (Function URL propia o segundo handler de la misma
 Lambda, ver ALS-027), sección propia en `App.tsx` con su anchor, carga diferida.
 
-**No implementar antes de:** ALS-027 desplegado y ALS-044 resuelto — en ese orden.
+**No implementar antes de:** ALS-027 desplegado.
 
 ---
 
@@ -822,7 +821,7 @@ vista. Ver ADR-5.
 | ID      | Épica | Prio   | Esfuerzo | Estado                             | Bloqueado por                    |
 | ------- | ----- | ------ | -------- | ---------------------------------- | -------------------------------- |
 | ALS-001 | A     | P0     | S        | ✅ Hecho                           | —                                |
-| ALS-002 | A     | P2     | S        | Pendiente                          | Productor                        |
+| ALS-002 | A     | P2     | S        | Parcial — falta verificar YouTube  | —                                 |
 | ALS-003 | A     | P1     | M        | Pendiente                          | Productor                        |
 | ALS-004 | A     | P1     | S        | Pendiente                          | Productor                        |
 | ALS-005 | A     | P1     | S        | Pendiente                          | Artistas                         |
@@ -854,8 +853,8 @@ vista. Ver ADR-5.
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
 | ALS-031 | G     | P2     | M        | ✅ Hecho — manual, no IaC          | —                                 |
 | ALS-032 | G     | P2     | L        | ✅ Hecho                           | —                                |
-| ALS-044 | G     | P2     | M        | Propuesto — desbloqueado           | —                                 |
-| ALS-045 | G     | P3     | M        | Propuesto                          | ALS-027 desplegado, ALS-044      |
+| ALS-044 | G     | P2     | M        | ✅ Hecho                           | —                                 |
+| ALS-045 | G     | P3     | M        | Propuesto                          | ALS-027 desplegado               |
 | ALS-041 | I     | P3     | S        | ✅ Hecho — Lighthouse (ALS-019) todavía no corrido | — |
 | ALS-043 | I     | P2     | M        | ✅ Hecho — QA visual manual pendiente | —                |
 
@@ -882,10 +881,10 @@ vista. Ver ADR-5.
    los pares de audio autorizados y con niveles emparejados es lo que la hace pesada.
 4. **ALS-023** — el código ya está, falta configurar el Measurement ID real y verificar el embudo
    en GA4 Realtime: sin eso, ALS-024 y ALS-041 no tienen forma de resolverse con datos.
-5. ~~**ALS-026**~~ — hecho (2026-08-25). **ALS-044** es la continuación natural, ya desbloqueada
-   (mismo dato, sección propia en vez de Portfolio).
+5. ~~**ALS-026** y **ALS-044**~~ — hechos (2026-08-25): Lambda desplegada y sección Discografía
+   consumiéndola en vivo.
 6. **ALS-037** — en cuanto haya fotos.
-7. **ALS-045** — después de ALS-044, no en paralelo (mismo patrón, resolverlo una sola vez).
+7. **ALS-045** — en cuanto ALS-027 (Lambda de YouTube) esté desplegada.
 8. Todo lo demás de la Épica I, al final y sin apuro.
 
 **Una advertencia sobre la Épica I:** son seis tickets de acabado visual y ninguno hace que alguien
@@ -893,10 +892,9 @@ escriba que no iba a escribir. Es la parte del backlog más fácil de empezar y 
 Si el tiempo es escaso, ALS-037 (fotos reales) y nada más.
 
 **Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
-ALS-026, ALS-027, ALS-031, ALS-044 y ALS-045 son alcance nuevo que **mejora** el sitio pero no
-impide publicarlo — el sitio puede lanzarse con el portfolio manual actual y sumar la integración
-con Spotify/YouTube después. ALS-023 (GA4) tampoco bloquea el lanzamiento, pero cuanto antes esté
-después de ALS-022, antes hay datos reales para decidir ALS-024 y ALS-041.
+ALS-027 y ALS-045 (integración YouTube, pendiente) son alcance nuevo que **mejora** el sitio pero
+no impide publicarlo. ALS-023 (GA4) tampoco bloquea el lanzamiento, pero cuanto antes esté después
+de ALS-022, antes hay datos reales para decidir ALS-024 y ALS-041.
 
 ## 5. Gobernanza
 
