@@ -54,7 +54,7 @@ export const LIMITS = {
    * real para repartir párrafos sin que se tapen. Proporción cercana a la
    * referencia (lenis.darkroom.engineering — cards altas, no cuadradas).
    */
-  SERVICES_DECK_CARD_WIDTH_PX: 320,
+  SERVICES_DECK_CARD_WIDTH_PX: 350,
   /**
    * Alto (px) de una card del mazo — ver `SERVICES_DECK_CARD_WIDTH_PX`.
    * Presupuesto real verificado con Playwright: el heading ahora vive en su
@@ -62,7 +62,7 @@ export const LIMITS = {
    * en la misma columna vertical que el mazo, así que esta altura sube
    * respecto a la iteración anterior sin recortarse contra el viewport.
    */
-  SERVICES_DECK_CARD_HEIGHT_PX: 380,
+  SERVICES_DECK_CARD_HEIGHT_PX: 420,
   /**
    * Cuántos PASOS hacia atrás en la cascada quedan visibles antes de que una
    * card desaparezca del todo — no cuántas cards, `+ 1` de esto (la recién
@@ -101,15 +101,6 @@ export const LIMITS = {
    */
   SERVICES_DECK_FAN_STEP_Y_PX: 50,
   /**
-   * Rotación (grados) por paso de la cascada. Bajada de 4 a 1.5: con 4°, el
-   * conjunto de la pila se leía como un ABANICO curvo (el usuario lo llamó
-   * "esa curva") — se ve bien pero no es lo pedido, que es una diagonal
-   * recta hacia abajo. Un tilt más sutil sigue dando la sensación de
-   * "cartas reales, no un stack perfecto", sin dominar sobre la traslación
-   * y curvar la silueta del conjunto.
-   */
-  SERVICES_DECK_FAN_ROTATE_STEP_DEG: 1.5,
-  /**
    * Distancia (px) desde la que una card SUBE hasta su posición de reposo
    * al entrar — "de abajo hacia arriba". Se suma SOLO durante la ventana de
    * entrada propia de la card (ver `entranceWindow`); una vez asentada, el
@@ -120,7 +111,7 @@ export const LIMITS = {
   /**
    * Escala a la que queda una card durante su propia entrada (0-1, sube a 1
    * al terminar). Deliberadamente sutil — la profundidad la da la cascada de
-   * posición/rotación, no el tamaño.
+   * posición, no el tamaño.
    */
   SERVICES_DECK_SCALE_MIN: 0.98,
   /**
@@ -130,6 +121,74 @@ export const LIMITS = {
    * card" en vez de un fundido parejo.
    */
   SERVICES_DECK_ENTRANCE_FRACTION: 0.4,
+  /**
+   * Radianes de YAW (eje Y, `rotationY` de `AlienMark3D`) que gira el isotipo
+   * por cada "beat" de 2 cards — `rotationTotalSteps` (`ServiciosDeck.tsx`,
+   * ≈ `total/2`) multiplica esto para fijar el swing TOTAL a lo largo de
+   * todo el mazo, pero el giro en sí se reparte de forma CONTINUA con el
+   * scroll, no en saltos — pedido explícito del usuario tras ver una
+   * primera versión escalonada: "más suave, como el giro que uno le hace
+   * manualmente al del Hero, solo que pineado al scroll". Sigue girando
+   * SOLO con el scroll (no de forma autónoma, `animate="spin"` como antes).
+   * En radianes porque así es como `3dsvg` espera `rotationX`/`rotationY`
+   * (ver más abajo, es three.js).
+   *
+   * NEGATIVO: el primer intento (positivo) giraba "al revés" de lo
+   * esperado — reportado por el usuario con una captura marcando el sentido
+   * de giro deseado. `rotationY` de three.js es antihorario visto desde
+   * +Z (la cámara), así que invertir el signo invierte el sentido del giro.
+   *
+   * Hubo un intento intermedio de bajar esto a `-0.1` (swing total ≈-28.6°
+   * en vez de ≈-143°) para evitar que la extrusión (fina de profundidad)
+   * se viera casi de canto cerca del final del scroll — revertido: el
+   * usuario ya había visto y aprobado ESTE valor ("recién rotaba bonito")
+   * antes de que se hiciera ese cambio, así que el swing grande se queda.
+   * Si el colapso "de canto" al final vuelve a molestar, el ajuste fino va
+   * por otro lado (menos recorrido de scroll dedicado a ese tramo, o un
+   * tope que no deje pasar de cierto ángulo) antes de volver a achicar esto.
+   */
+  SERVICES_DECK_ALIEN_YAW_STEP_RAD: -0.5,
+  /**
+   * Radianes de PITCH (eje X, `rotationX`) que gira el isotipo por cada
+   * "beat" de 2 cards, junto con el yaw de arriba (mismo criterio de
+   * `rotationTotalSteps` × continuo, ver arriba). Deliberadamente distinto
+   * (más chico) y de signo OPUESTO al yaw, no cero ni el mismo signo:
+   * pedido explícito del usuario — "que se gire en sentido curvo
+   * diagonal... que rote sobre el espacio, no solo por su eje vertical".
+   * Combinar pitch+yaw de signo distinto traza una curva oblicua (no una
+   * línea recta en un solo plano), que es la sensación de "giro
+   * diagonal/orbital" pedida — con el mismo signo en los dos ejes el giro
+   * se ve como una diagonal derecha, no como la curva oblicua que el
+   * usuario dibujó en su captura.
+   */
+  SERVICES_DECK_ALIEN_PITCH_STEP_RAD: 0.22,
+  /**
+   * Tamaño (px, cuadrado) del isotipo detrás del mazo. Única fuente de
+   * verdad para su ancho/alto — se usa tanto para el `style` inline del
+   * wrapper (no una clase de Tailwind: necesita el mismo número en JS para
+   * calcular el offset de centrado, ver `alienX`/`alienY` en
+   * `ServiciosDeck.tsx`) como, indirectamente, para saber cuánto asoma más
+   * allá de la pila (`stackWidth`/`stackHeight`) en cualquier momento del
+   * scroll.
+   */
+  SERVICES_DECK_ALIEN_SIZE_PX: 800,
+  /**
+   * Distancia horizontal (px) que RECORRE el isotipo a lo largo de todo el
+   * scroll del mazo — pedido explícito del usuario con una captura
+   * marcando el recorrido: "que parta de un punto y se mueva más por lo
+   * horizontal" hacia la derecha, terminando solapando un poco el heading.
+   * Antes el isotipo solo giraba en el lugar (centrado, fijo); ahora
+   * también viaja.
+   */
+  SERVICES_DECK_ALIEN_TRAVEL_X_PX: 380,
+  /**
+   * Desplazamiento vertical (px) máximo del arco del recorrido horizontal
+   * de arriba — un dip suave a mitad de camino (progreso 0.5), no una
+   * línea perfectamente recta, pero chico a propósito frente a
+   * `TRAVEL_X_PX`: el usuario pidió que se mueva "más por lo horizontal",
+   * no en diagonal pareja.
+   */
+  SERVICES_DECK_ALIEN_ARC_Y_PX: 40,
 } as const
 
 /** Media queries con nombre. Ningún string de breakpoint suelto en los componentes. */

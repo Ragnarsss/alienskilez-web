@@ -600,7 +600,8 @@ largo, saber cuánto falta reduce el abandono.
 
 ### ALS-041 — Preloader de marca
 
-- Prioridad: P3 · Esfuerzo: S · **Estado: Hecho** (`3de33fb`)
+- Prioridad: P3 · Esfuerzo: S · **Estado: Hecho** *(commit `3de33fb`, backlog corregido 2026-08-24 —
+  se cerró en código sin actualizar este documento en el mismo commit, contra la regla de §5)*
 
 **Ojo con este:** un preloader *agrega* tiempo percibido a cambio de una impresión de marca. En una
 landing de conversión suele ser mala idea. La decisión de construirlo igual **no esperó** a los
@@ -631,29 +632,33 @@ táctil, y si tapa el cursor nativo en campos de formulario es directamente un p
 
 En desktop (`MEDIA.DECK`, ≥1024px) las 10 cards de Servicios se apilan como un mazo con el scroll:
 cascada diagonal descendente, cada card sube desde abajo a su lugar, y el isotipo 3D translúcido
-gira detrás de la pila. En mobile y con `prefers-reduced-motion` se mantiene la grilla simple con
-descripción y CTA por servicio — es una decisión de **layout**, no de "hay o no movimiento": el
-mazo exige un recorrido de scroll que no tiene sentido imponerle a quien pidió menos movimiento.
+gira y viaja detrás de la pila, atado al scroll (no autónomo). En mobile y con
+`prefers-reduced-motion` se mantiene la grilla simple con descripción y CTA por servicio — es una
+decisión de **layout**, no de "hay o no movimiento": el mazo exige un recorrido de scroll que no
+tiene sentido imponerle a quien pidió menos movimiento.
 
 Referencia visual: la sección "Lenis brings the heat" de lenis.darkroom.engineering.
 
 **Criterios verificados:** hasta 4 cards simultáneas en cascada; entrada de abajo hacia arriba;
-isotipo girando y reconocible a través de las cards; sin overflow ni solapamiento a 1024px; la
-grilla mobile no cambia. La altura de la sección bajó de 4232px a 1991px (−53%).
+isotipo grande (800px), girando en diagonal (yaw+pitch) y desplazándose horizontalmente de forma
+continua atado al `scrollYProgress` — no en escalones ni de forma autónoma —, reconocible a través
+de las cards translúcidas; sin overflow ni solapamiento a 1024px; la grilla mobile no cambia. La
+altura de la sección bajó de 4232px a 1991px (−53%).
 
-**Sigue abierto:** la visibilidad del isotipo detrás del mazo es intermitente por diseño — queda
-fijo mientras las cards cascadean por encima, así que la superposición varía según el tramo del
-scroll. Si al verlo en vivo se siente demasiado intermitente, los candidatos son agrandar el
-isotipo o atar su posición al progreso del scroll (hoy es autónoma), no replantear la estructura.
+**Bug real encontrado y corregido en el camino:** el wrapper del isotipo era hijo de un contenedor
+`flex`, y el `flex-shrink: 1` default de flexbox comprimía en silencio su ancho pedido al ancho
+(más angosto) de la pila de cards — sin error ni warning. Se resolvió centrando con `x`/`y` de
+framer-motion en vez de `flex items-center justify-center`.
 
 **QA pendiente:** teclado real y anchos intermedios en navegador — se cubre en ALS-019 y ALS-020,
 no acá.
 
-> **Sobre el tamaño de esta ficha.** Ocupaba 308 líneas con el registro de cinco iteraciones del
-> componente, cada una repitiendo sus cifras de bundle y su corrida de `lint`/`test`/`build`. Se
+> **Sobre el tamaño de esta ficha.** Ocupaba cientos de líneas con el registro iteración por
+> iteración, cada una repitiendo sus cifras de bundle y su corrida de `lint`/`test`/`build`. Se
 > redujo aplicando la anatomía de ticket de §5: la evolución vive en los commits
-> (`c242989` → `65d7481` → `65c774c` → `ce1f5db` → `4cb14e4` → `4c5af36`), los parámetros y su
-> porqué en los comentarios de `constants/limits.ts`, y las cifras de bundle en `quality-gates.md`.
+> (`c242989` → `65d7481` → `65c774c` → `ce1f5db` → `4cb14e4` → `4c5af36` → `<pendiente de commit>`),
+> los parámetros y su porqué en los comentarios de `constants/limits.ts`, y las cifras de bundle en
+> `quality-gates.md`.
 
 ---
 

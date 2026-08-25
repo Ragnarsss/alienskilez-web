@@ -2,6 +2,7 @@ import { Button } from "@/shared/components/ui/Button"
 import { CTA } from "@/shared/constants/content"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import type { Service } from "@/shared/constants/services"
+import { trackCtaClick } from "@/shared/lib/analytics"
 
 /**
  * Markup de una card de servicio, compartido entre la grilla (mobile) y el
@@ -27,11 +28,19 @@ import type { Service } from "@/shared/constants/services"
  * contenido encima de eso se leía como cards "muertas" en vez de una pila
  * real de tarjetas.
  *
- * `layout="deck"` es translúcida (`bg-background/70` + `backdrop-blur-md`),
+ * `layout="deck"` es translúcida (`bg-background/50` + `backdrop-blur-sm`),
  * no opaca: el isotipo 3D vive DETRÁS de todo el mazo (`ServiciosDeck.tsx`,
  * pedido explícito del usuario — en versiones previas estaba delante, chico
- * y desconectado) y tiene que verse, atenuado y desenfocado, a través de las
- * cards que tiene encima, girando de forma continua.
+ * y desconectado) y tiene que verse a través de las cards que tiene
+ * encima — girando en pasos atados al scroll, no de forma continua/autónoma
+ * (ver `AlienMark3D.tsx`).
+ *
+ * Un intento anterior sacó el `backdrop-blur` por completo (con
+ * `bg-background/70` se veía solo un resplandor difuso) — pedido explícito
+ * del usuario después de verlo: subir la transparencia (70%→50% de fondo
+ * OPACO, o sea más see-through) Y sumar blur de vuelta, para que el alien
+ * tenga más chance de notarse detrás. Con menos fondo opaco de base, el
+ * blur ya no ahoga la silueta como antes.
  */
 export function ServiceCard({
   service,
@@ -45,7 +54,7 @@ export function ServiceCard({
 }) {
   if (layout === "deck") {
     return (
-      <article className="hud-frame flex h-full flex-col justify-between border border-border bg-background/60 p-6 shadow-2xl shadow-black/50">
+      <article className="hud-frame flex h-full flex-col justify-between border border-border bg-background/50 p-6 shadow-2xl shadow-black/50 backdrop-blur-sm">
         {index !== undefined && (
           <p className="font-display text-5xl font-bold text-accent" aria-hidden="true">
             {String(index + 1).padStart(2, "0")}
@@ -60,7 +69,15 @@ export function ServiceCard({
     <article className="hud-frame flex h-full flex-col bg-background p-7 transition-colors hover:bg-surface/25">
       <h3 className="text-lg font-semibold tracking-tight">{service.label}</h3>
       <p className="mt-3 flex-1 text-sm leading-relaxed text-text-muted">{service.description}</p>
-      <Button href={anchor(SECTION_IDS.CONTACTO)} variant="ghost" size="md" className="mt-6 w-full">
+      <Button
+        href={anchor(SECTION_IDS.CONTACTO)}
+        variant="ghost"
+        size="md"
+        className="mt-6 w-full"
+        onClick={() => {
+          trackCtaClick(service.tier)
+        }}
+      >
         {service.tier === "sesion" ? CTA.PRIMARY : CTA.SECONDARY}
         <span className="sr-only"> — {service.label}</span>
       </Button>

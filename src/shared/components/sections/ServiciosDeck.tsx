@@ -1,4 +1,4 @@
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { motion, useScroll, useTransform, type MotionValue } from "framer-motion"
 import { ServiceCard } from "@/shared/components/sections/ServiceCard"
 import { AlienMark3D } from "@/shared/components/ui/AlienMark3D"
@@ -10,6 +10,7 @@ import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import { SERVICES } from "@/shared/constants/services"
 import type { Service } from "@/shared/constants/services"
 import { useMeasuredHeightPx } from "@/shared/hooks/useMeasuredHeightPx"
+import { trackCtaClick } from "@/shared/lib/analytics"
 
 /**
  * Ventana de progreso (0-1, sobre el scroll de TODO el mazo) en la que la
@@ -54,9 +55,8 @@ function entranceWindow(index: number, total: number): [number, number] {
  * esa card ya no tiene quién la siga empujando, así que se queda en el
  * último paso alcanzado (no hay "siguiente" que la retire).
  *
- * Se reutiliza tal cual para `x`, `y` y `rotate` — los tres viajan al mismo
- * ritmo, solo cambia la magnitud por paso (`step`) y si crecen o decrecen
- * (`direction`).
+ * Se reutiliza tal cual para `x` e `y` — viajan al mismo ritmo, solo cambia
+ * la magnitud por paso (`step`).
  */
 function cascadeBreakpoints(index: number, total: number, depth: number): number[] {
   const [, ownEnd] = entranceWindow(index, total)
@@ -79,11 +79,6 @@ function recedingCascade(breakpointCount: number, step: number): number[] {
   return Array.from({ length: breakpointCount }, (_, i) => -i * step)
 }
 
-/** Valores para una cascada que ARRANCA en 0 (paso 0, recién entrada) y SUBE `step` por cada quiebre. */
-function ascendingCascade(breakpointCount: number, step: number): number[] {
-  return Array.from({ length: breakpointCount }, (_, i) => i * step)
-}
-
 /**
  * Una card del mazo, posicionada en ABSOLUTO dentro del contenedor fijado
  * por `ServiciosDeck` — no con `position: sticky` propia (esa fue la
@@ -93,13 +88,18 @@ function ascendingCascade(breakpointCount: number, step: number): number[] {
  *
  * A diferencia de la 4ª versión (offset fijo por `index % slots`), acá cada
  * card viaja por una CASCADA real: entra al frente (paso 0 — exactamente en
- * la esquina de anclaje del mazo, sin rotación, como recién puesta encima)
- * y RETROCEDE un paso — más lejos de esa esquina, más rotada — cada vez que
- * la siguiente card entra, hasta desvanecerse del todo. Es la misma
- * relación que en la referencia (lenis.darkroom.engineering): la card más
- * reciente es la más al frente Y la que menos se movió de la esquina; la
- * más vieja todavía visible es la que más retrocedió y la que más
- * inclinada está.
+ * la esquina de anclaje del mazo) y RETROCEDE un paso — más lejos de esa
+ * esquina — cada vez que la siguiente card entra, hasta desvanecerse del
+ * todo. Es la misma relación que en la referencia
+ * (lenis.darkroom.engineering): la card más reciente es la más al frente Y
+ * la que menos se movió de la esquina; la más vieja todavía visible es la
+ * que más retrocedió.
+ *
+ * **Sin rotación** (la 5ª/6ª versión sí rotaba cada card un poco por paso)
+ * — pedido explícito del usuario: la pila tiene que leerse como una
+ * diagonal RECTA, no como el abanico/curva que salía con las cards
+ * inclinadas. El giro ahora es cosa solo del isotipo (`ServiciosDeck`, más
+ * abajo), no de las cards.
  */
 function DeckCard({
   service,
@@ -125,11 +125,6 @@ function DeckCard({
     progress,
     breakpoints,
     recedingCascade(breakpoints.length, LIMITS.SERVICES_DECK_FAN_STEP_Y_PX),
-  )
-  const rotate = useTransform(
-    progress,
-    breakpoints,
-    ascendingCascade(breakpoints.length, LIMITS.SERVICES_DECK_FAN_ROTATE_STEP_DEG),
   )
   // El "sube desde abajo" es una animación TEMPORAL que solo corre durante la
   // ventana de entrada propia — se suma encima de `restY` (que ya vale su
@@ -157,7 +152,6 @@ function DeckCard({
       style={{
         x,
         y,
-        rotate,
         scale,
         opacity,
         // `index + 1`, no `index`: el isotipo detrás del mazo vive en
@@ -203,10 +197,25 @@ function DeckCard({
  * izquierda, y quería el layout espejado (mazo a la izquierda, heading a la
  * derecha), más parecido a cómo "LENIS BRINGS THE HEAT" se para en la
  * referencia. El isotipo 3D vive DETRÁS de todo el mazo, centrado (`z-index`
- * por debajo de TODAS las cards) — también pedido explícito: antes estaba
- * delante, chico y en una esquina, desconectado de las cards; ahora gira
- * grande detrás de ellas y se ve translúcido a través de las cards que
- * tiene encima (`ServiceCard.tsx`, `bg-background/70` + `backdrop-blur-md`).
+ * por debajo de TODAS las cards) y se ve translúcido a través de las cards
+ * que tiene encima (`ServiceCard.tsx`).
+ *
+ * El giro del isotipo YA NO ES AUTÓNOMO (6ª iteración) — pedido explícito
+ * del usuario: "que el alien gire SOLO con el scroll". `alienRotation`
+ * (yaw + pitch, radianes) crece de forma CONTINUA y proporcional con
+ * `scrollYProgress` — no en escalones (un primer intento saltaba de golpe
+ * cada 2 cards; el usuario pidió "más suave, como el giro que uno le hace
+ * manualmente al del Hero arrastrando con el mouse, solo que pineado al
+ * scroll" — el mismo suavizado de `3dsvg` que atenúa el arrastre manual
+ * atenúa cualquier cambio de `rotationX`/`rotationY`, así que alimentarlo
+ * con progreso continuo da esa sensación de arrastre fluido). Pasarle
+ * `rotationX`/`rotationY` apaga el giro autónomo de la librería
+ * (`animate="spin"`) — ver la corrección de suposición sobre esto en
+ * `AlienMark3D.tsx`. Pitch Y yaw combinados, de signo OPUESTO entre sí (no
+ * solo yaw, no el mismo signo) es lo que da el "gira en sentido diagonal,
+ * como si rotara sobre el espacio" pedido — un solo eje se ve como un
+ * simple spin vertical, el mismo signo en los dos ejes traza una diagonal
+ * derecha en vez de la curva oblicua pedida.
  */
 export function ServiciosDeck({
   headingId,
@@ -232,6 +241,53 @@ export function ServiciosDeck({
     target: wrapperRef,
     offset: ["start start", `${LIMITS.SERVICES_DECK_RUNWAY_VH}vh start`],
   })
+
+  // Giro del isotipo CONTINUO, no en escalones — pedido explícito del
+  // usuario tras ver la versión con `Math.floor` ("cada 2 beat gira un
+  // poco"): esa saltaba de golpe entre ángulos; esto tiene que sentirse
+  // "más suave, como el giro que uno le hace manualmente al del Hero
+  // (arrastrando con el mouse), solo que pineado al scroll" — el mismo
+  // `SmoothControls` de `3dsvg` que suaviza el arrastre manual (ver
+  // `AlienMark3D.tsx`) suaviza CUALQUIER cambio de `rotationX`/`rotationY`
+  // frame a frame, así que alimentarlo con un valor CONTINUO en vez de
+  // saltos da esa misma sensación de "arrastre fluido", nada más que la
+  // "mano" ahora es el progreso de scroll. `rotationTotalSteps` sigue
+  // fijando cuánto gira en total a lo largo de TODO el mazo (mismo rango
+  // que la versión escalonada); lo que cambia es que ahora se reparte
+  // proporcional a cada pixel de scroll, no de a saltos cada 2 cards.
+  //
+  // El `useEffect` de abajo SÍ dispara un `setState` en cada cambio — no
+  // hay forma de pasarle un `MotionValue` directo a `rotationX`/`rotationY`
+  // de `SVG3D` (son props de React normales, no valores CSS que
+  // framer-motion pueda escribir sin re-render) — pero el umbral (`0.004`
+  // de progreso, ~250 actualizaciones en todo el scroll) evita disparar un
+  // render por cada pixel: el propio suavizado de `SmoothControls` ya hace
+  // el resto del trabajo de que se vea fluido entre esas actualizaciones.
+  const rotationTotalSteps = Math.ceil(total / 2)
+  const totalYaw = rotationTotalSteps * LIMITS.SERVICES_DECK_ALIEN_YAW_STEP_RAD
+  const totalPitch = rotationTotalSteps * LIMITS.SERVICES_DECK_ALIEN_PITCH_STEP_RAD
+  const [alienRotation, setAlienRotation] = useState({ yaw: 0, pitch: 0 })
+  useEffect(() => {
+    let lastProgress = -1
+    return scrollYProgress.on("change", (p) => {
+      if (Math.abs(p - lastProgress) < 0.004) return
+      lastProgress = p
+      setAlienRotation({ yaw: p * totalYaw, pitch: p * totalPitch })
+    })
+  }, [scrollYProgress, totalYaw, totalPitch])
+
+  // Recorrido horizontal del isotipo (pedido explícito del usuario, ver
+  // `SERVICES_DECK_ALIEN_TRAVEL_X_PX`): a diferencia del giro, esto SÍ puede
+  // ser un `MotionValue` puro sin pasar por `useState` — es un valor CSS
+  // (`transform`) que `motion.div` escribe directo al DOM, no una prop de
+  // React hacia un componente Three.js. `alienX`/`alienY` arrancan en
+  // `-mitad del tamaño` (el offset de centrado que antes hacía la clase
+  // `-translate-x-1/2 -translate-y-1/2`) y le SUMAN el recorrido/arco.
+  const alienSize = LIMITS.SERVICES_DECK_ALIEN_SIZE_PX
+  const alienTravelX = useTransform(scrollYProgress, [0, 1], [0, LIMITS.SERVICES_DECK_ALIEN_TRAVEL_X_PX])
+  const alienArcY = useTransform(scrollYProgress, [0, 0.5, 1], [0, LIMITS.SERVICES_DECK_ALIEN_ARC_Y_PX, 0])
+  const alienX = useTransform(() => -alienSize / 2 + alienTravelX.get())
+  const alienY = useTransform(() => -alienSize / 2 + alienArcY.get())
 
   const depth = LIMITS.SERVICES_DECK_VISIBLE_DEPTH
   const stackWidth =
@@ -275,30 +331,66 @@ export function ServiciosDeck({
             </h2>
             <p className="mt-4 text-base leading-relaxed text-text-muted">{description}</p>
             <div className="mt-6 flex justify-end">
-              <Button href={anchor(SECTION_IDS.CONTACTO)} variant="primary" size="md">
+              <Button
+                href={anchor(SECTION_IDS.CONTACTO)}
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  trackCtaClick("sesion")
+                }}
+              >
                 {CTA.PRIMARY}
               </Button>
             </div>
           </motion.header>
 
           <div className="relative" style={{ width: stackWidth, height: stackHeight }}>
-            {/* Isotipo DETRÁS de todas las cards (`z-index` negativo, la
-                card con `zIndex` más bajo es 0) — grande y centrado en la
-                pila, girando de forma continua y visible a través de las
-                cards translúcidas que tiene encima (`ServiceCard.tsx`). El
-                posicionamiento va en este wrapper, NO en `AlienMark3D`
-                directo: el componente antepone `"relative"` a su propio
-                `className` (lo necesita para el `absolute` interno de
-                `FlatGlyph`/`Mark3DBoundary`) y `cn()` acá es un join simple
-                sin dedupe tipo tailwind-merge — pasarle clases de
-                posicionamiento directo perdía contra ese `"relative"`
-                (orden del stylesheet de Tailwind, no del string de clases). */}
-            <div
-              className="pointer-events-none absolute inset-0 flex items-center justify-center"
-              style={{ zIndex: 0 }}
+            {/* Isotipo DETRÁS de todas las cards (`zIndex: 0`, las cards
+                arrancan en 1) — grande y centrado en la pila, visible a
+                través de las cards translúcidas que tiene encima
+                (`ServiceCard.tsx`). El posicionamiento va en este wrapper,
+                NO en `AlienMark3D` directo: el componente antepone
+                `"relative"` a su propio `className` (lo necesita para el
+                `absolute` interno de `FlatGlyph`/`Mark3DBoundary`) y `cn()`
+                acá es un join simple sin dedupe tipo tailwind-merge —
+                pasarle clases de posicionamiento directo perdía contra ese
+                `"relative"` (orden del stylesheet de Tailwind, no del string
+                de clases). */}
+            <motion.div
+              className="pointer-events-none absolute top-1/2 left-1/2"
+              style={{ zIndex: 0, width: alienSize, height: alienSize, x: alienX, y: alienY }}
             >
-              <AlienMark3D className="h-72 w-72" />
-            </div>
+              {/*
+                Bastante más grande que la pila ENTERA
+                (stackWidth×stackHeight), a propósito solapando un poco el
+                heading — pedido explícito del usuario con una captura
+                marcando el tamaño ("por ejemplo como de ese tamaño"): con
+                `h-96` (384px) y después 672px (más chico que el peek
+                necesario) el isotipo se seguía tapando del todo en tramos
+                del scroll donde se acumulan varias cards encima. Con este
+                tamaño (`SERVICES_DECK_ALIEN_SIZE_PX`) el margen que asoma
+                más allá de cualquier card es generoso en las dos
+                dimensiones, así que nunca desaparece del todo.
+
+                Centrado con `x`/`y` (`alienX`/`alienY` arrancan en
+                `-alienSize/2`), NO con clases `-translate-1/2` de
+                Tailwind: acá también viaja horizontalmente con el scroll
+                (`SERVICES_DECK_ALIEN_TRAVEL_X_PX`, pedido explícito del
+                usuario — "que parta de un punto y se mueva más por lo
+                horizontal"), y framer-motion necesita ser dueño de TODO el
+                `transform` del elemento a la vez — mezclar una clase
+                Tailwind que fija el transform con un `style.x`/`style.y`
+                de framer-motion pisaría uno al otro. Motivo de por qué NO
+                se usa `flex items-center justify-center` para centrar
+                (versión anterior): un hijo de flex más grande que su
+                contenedor se ENCOGE por default (`flex-shrink: 1`) para
+                entrar en el eje principal — acá el contenedor mide
+                `stackWidth` (más angosto que el isotipo), así que el ancho
+                pedido se comprimía en silencio hasta el ancho de la pila,
+                sin error ni warning.
+              */}
+              <AlienMark3D className="h-full w-full" rotationY={alienRotation.yaw} rotationX={alienRotation.pitch} />
+            </motion.div>
             {SERVICES.map((service, index) => (
               <DeckCard
                 key={service.id}

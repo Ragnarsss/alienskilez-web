@@ -57,20 +57,39 @@ class Mark3DBoundary extends Component<{ children: ReactNode }, { failed: boolea
 }
 
 /**
- * Girando de forma continua y autónoma (`animate="spin"`) — 3dsvg no expone
- * una forma de atar la rotación a un valor externo (progreso de scroll,
- * etc.), así que "gira mientras se espera" se resuelve con el mismo giro
- * autónomo del Hero, no con un giro controlado por scroll.
+ * Por default gira de forma continua y autónoma (`animate="spin"`) — es lo
+ * que usa el Hero, que no necesita atar el giro a nada más.
+ *
+ * **Corrección sobre una suposición de ALS-043 (5ª iteración):** el
+ * comentario original acá decía "3dsvg no expone una forma de atar la
+ * rotación a un valor externo" — nunca se verificó contra la librería real,
+ * solo se asumió. Sí lo expone: `rotationX`/`rotationY` (radianes, tipo
+ * three.js) son props REACTIVAS — `node_modules/3dsvg/dist/index.js`
+ * (`SmoothControls`) las observa con un `useEffect` y las suaviza hacia el
+ * nuevo valor en cada frame (`useFrame`) aunque `animate="none"`, así que
+ * pasar un número nuevo produce un giro suave hacia ese ángulo, no un salto.
+ * Cuando se pasan `rotationX`/`rotationY` acá, este componente cambia a
+ * `animate="none"` (si no, el giro autónomo de `LoopAnimation` se sumaría
+ * al de `SmoothControls` sobre el mismo mesh) y el giro pasa a depender
+ * solo de lo que le pase el caller — usado por el mazo de Servicios para
+ * un giro atado al scroll en pasos, no continuo (ver `ServiciosDeck.tsx`).
  */
 export function AlienMark3D({
   className,
   spinSpeed = HERO_MARK.SPIN_SPEED,
+  rotationX,
+  rotationY,
 }: {
   className?: string
   spinSpeed?: number
+  /** Radianes. Si se pasa (junto con `rotationY` o solo), el giro deja de ser autónomo. */
+  rotationX?: number
+  /** Radianes. Si se pasa (junto con `rotationX` o solo), el giro deja de ser autónomo. */
+  rotationY?: number
 }) {
   const prefersReducedMotion = usePrefersReducedMotion()
   const [isReady, setIsReady] = useState(false)
+  const scrollControlled = rotationX !== undefined || rotationY !== undefined
 
   return (
     <div className={cn("relative", className)} aria-hidden="true">
@@ -82,8 +101,10 @@ export function AlienMark3D({
               svg={alienGlyph}
               color={HERO_MARK.COLOR}
               smoothness={HERO_MARK.SMOOTHNESS}
-              animate={prefersReducedMotion ? "none" : "spin"}
+              animate={prefersReducedMotion || scrollControlled ? "none" : "spin"}
               animateSpeed={spinSpeed}
+              rotationX={rotationX}
+              rotationY={rotationY}
               onLoadingChange={(loading, progress) => {
                 if (!loading && progress >= 100) setIsReady(true)
               }}
