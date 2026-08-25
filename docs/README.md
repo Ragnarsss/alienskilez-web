@@ -1,9 +1,11 @@
 # Documentación — ALIENSKILEZ web
 
-Fecha: 2026-08-12 (última actualización: WhatsApp real, ALS-001)
-Estado: sitio implementado y verificado (`lint`, `test` 24/24, `build` limpios).
-**No desplegado todavía** — quedan ALS-019 (Lighthouse/a11y) y ALS-020 (responsive) antes de
-ALS-022. El bloqueante original (número de WhatsApp, ALS-001) ya está resuelto.
+Fecha: 2026-08-25 (última actualización: sección Discografía + Lambda de Spotify, ALS-026/ALS-044)
+Estado: sitio implementado y verificado (`lint`, `test` 47/47, `build` limpios).
+**Deploy en curso** — AWS Amplify Hosting (ADR-16), con el checklist de `quality-gates.md` §7
+todavía sin correr contra el sitio ya desplegado. ALS-019 (Lighthouse/a11y) y ALS-020 (responsive)
+debían cerrarse antes de desplegar y no se esperaron — quedan pendientes igual, para verificar
+contra el sitio real. El bloqueante original (número de WhatsApp, ALS-001) ya está resuelto.
 
 ## Qué es este proyecto
 
@@ -29,7 +31,7 @@ Motion. Sin backend, sin base de datos, sin router.
 ### Ingeniería
 
 5. [**Arquitectura**](./architecture.md) — stack, mapa de módulos, modelo de contenido, el flujo
-   de agendamiento y **10 ADR** con las decisiones cerradas y su porqué.
+   de agendamiento y **16 ADR** con las decisiones cerradas y su porqué.
 6. [**Guía de ingeniería**](./engineering-guidelines.md) — TDD acotado, SoC, KISS, DRY, SOLID,
    constantes y *magic strings*, reglas del React Compiler, Definition of Done y convención de
    commits.
@@ -85,14 +87,15 @@ Ver ADR-6 en [`architecture.md`](./architecture.md) y §10 de
 
 | | Estado |
 |---|---|
-| Secciones implementadas | 9 + navbar + footer |
-| Tests | 24/24 en verde (schema y armado del mensaje) |
+| Secciones implementadas | 10 + navbar + footer |
+| Tests | 47/47 en verde (schema, armado del mensaje, catálogo de Spotify, tema, preloader, glyph) |
 | Lint / build | Limpios |
 | Contrastes de la paleta | 10 combinaciones calculadas |
 | Lighthouse | ⏳ Sin correr (ALS-019) |
 | Lector de pantalla | ⏳ Sin recorrer (ALS-019) |
-| Datos reales de negocio | ⏳ Portfolio, cifras y testimonios pendientes (ALS-003 a ALS-005) |
+| Datos reales de negocio | ⏳ Portfolio (curaduría), cifras y testimonios pendientes (ALS-003 a ALS-005) |
 | Número de WhatsApp | ✅ Real, personal — falta migrar a Business (ALS-030) |
-| Integración con Spotify/YouTube | ⏳ Decisión de arquitectura abierta (ALS-026, ALS-027) |
-| Hero 3D + aura de mouse | ⏳ Pendiente, sin bloquear el lanzamiento (ALS-028, ALS-029) |
-| Despliegue | ⏳ Pendiente (ALS-022) |
+| Discografía (catálogo Spotify en vivo) | ✅ Hecho — Lambda desplegada y sección consumiéndola (ALS-026, ALS-044) |
+| Integración con YouTube | ⏳ Pendiente (ALS-027, ALS-045) |
+| Hero 3D + aura de mouse | ✅ Hecho (ALS-028, ALS-029) |
+| Despliegue | 🚧 En curso — AWS Amplify Hosting (ALS-022, ADR-16) |

@@ -32,8 +32,8 @@ hasta reemplazarlos:
 | Qué | Dónde | Estado |
 |---|---|---|
 | Número de WhatsApp | `src/shared/constants/whatsapp.ts` | ✅ Resuelto (ALS-001) — número real, personal. Migrar a Business queda como ALS-030. |
-| URL de Spotify | `src/shared/constants/site.ts` | El enlace no se renderiza mientras `pending: true`. Requiere la URL real del perfil de artista (usa un ID opaco, no se puede derivar del nombre). Ver también ALS-026 — la integración de portfolio con Spotify puede reemplazar este enlace suelto por algo más rico. |
-| URL de YouTube | `src/shared/constants/site.ts` | Construida como `youtube.com/@alienskilez`. Verificar que resuelva. |
+| URL de Spotify | `src/shared/constants/site.ts` | ✅ Resuelto (ALS-002, 2026-08-25) — Artist ID real cargado, ya no es `pending`. |
+| URL de YouTube | `src/shared/constants/site.ts` | Construida como `youtube.com/@alienskilez`. Verificar que resuelva (ALS-002, parte pendiente). |
 | Trabajos del portfolio | `src/shared/constants/portfolio.ts` | 5 entradas placeholder, una por línea de servicio, con espacio para embeds de Spotify/YouTube. |
 | Cifras de trayectoria | `src/shared/constants/alcance.ts` | 4 métricas en `[XX]`. Cada una documenta **cómo se calcula** en el campo `measurement`. |
 | Testimonios | `src/shared/constants/testimonials.ts` | 3 slots vacíos. Pedir la cita por escrito y autorización para publicarla con nombre. |
@@ -45,12 +45,17 @@ placeholders.
 ## Arquitectura
 
 ```
+aws/spotify-catalog/            # Lambda del catálogo de Spotify (ALS-026) — deploy separado del sitio
 src/
 ├── App.tsx                     # solo compone secciones — cero lógica
 ├── styles/index.css            # design tokens (@theme de Tailwind v4) — fuente de verdad
-├── features/booking/           # la única lógica real del sitio
-│   ├── booking.schema.ts       # validación pura (zod)
-│   └── hooks/useBookingForm.ts # orquesta RHF + arma el mensaje + abre WhatsApp
+├── features/
+│   ├── booking/                 # validación + armado del mensaje de WhatsApp
+│   │   ├── booking.schema.ts    # validación pura (zod)
+│   │   └── hooks/useBookingForm.ts
+│   └── discografia/              # fetch + validación del catálogo de Spotify (ALS-044)
+│       ├── discografia.ts        # parseo/validación pura de la respuesta de la Lambda
+│       └── hooks/useDiscografia.ts
 ├── shared/
 │   ├── components/ui/          # primitivos propios (Button, Section, Kicker…)
 │   ├── components/sections/    # una sección de la landing por archivo
@@ -76,5 +81,14 @@ vive en `useBookingForm`, nunca en el JSX.
 
 ## Despliegue
 
-Sitio 100% estático. Vercel o Netlify conectado al repo, build `npm run build`, output `dist/`.
+- **Sitio:** [AWS Amplify Hosting](https://us-east-2.console.aws.amazon.com/amplify/) conectado a
+  `github.com/Ragnarsss/alienskilez-web` (rama `main`) — build automático en cada push
+  (`npm run build`, output `dist/`). Variables de entorno de build (`VITE_GA_MEASUREMENT_ID`,
+  `VITE_SPOTIFY_CATALOG_URL`) se cargan a mano en la consola de Amplify, nunca en el repo. Ver
+  ADR-16 en [`docs/architecture.md`](docs/architecture.md) para el porqué (no es Vercel/Netlify,
+  como decía una versión anterior de este documento).
+- **Catálogo de Spotify (Discografía):** función AWS Lambda con Function URL propia, desplegada por
+  separado. Registro completo del despliegue en
+  [`aws/spotify-catalog/README.md`](aws/spotify-catalog/README.md).
+
 Gate antes de mergear: `npm run lint && npm test && npm run build`.

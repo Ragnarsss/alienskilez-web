@@ -448,24 +448,24 @@ tendría dónde aplicarse.
 
 ### ALS-022 — Despliegue inicial
 
-- Prioridad: **P0** · Esfuerzo: S · Estado: Pendiente (bloqueado por ALS-019, ALS-020)
+- Prioridad: **P0** · Esfuerzo: S · Estado: En curso
 
-Vercel o Netlify conectado al repositorio; build `npm run build`, salida `dist/`. Sitio 100%
-estático, sin variables de entorno.
+**AWS Amplify Hosting** (no Vercel/Netlify, el plan original — ver ADR-16 para el porqué),
+conectado a `github.com/Ragnarsss/alienskilez-web` (rama `main`), build automático en cada push
+(`npm run build`, salida `dist/`). Pasó primero por AWS S3 + CloudFront a mano; se migró a Amplify
+por el build+deploy automático desde el repo (detalle en ADR-16).
 
-ALS-001 (bloqueante original) ya está cerrado. Lo que queda antes de este ticket es ALS-019
-(Lighthouse + a11y) y ALS-020 (barrido responsive) — ver el checklist final.
+Ya no es cierto que sea "sin variables de entorno": ALS-023 agregó `VITE_GA_MEASUREMENT_ID` y
+ALS-044 agregó `VITE_SPOTIFY_CATALOG_URL`, ambas cargadas a mano en la consola de Amplify (ver
+`.env.example` para el contrato de cada una).
+
+**El plan original ataba esto a ALS-019 (Lighthouse/a11y) y ALS-020 (responsive) antes de
+desplegar — no se esperó.** El deploy real a Amplify ya existe y está en curso sin que esos dos
+sigan `Pendiente`, mismo patrón de "no esperó los datos" que ALS-041. No es un cierre limpio del
+ticket: falta correr el checklist de `quality-gates.md` §7 contra el sitio ya desplegado.
 
 **Criterios:** dominio resolviendo; checklist final de [`quality-gates.md`](./quality-gates.md) §7
 completo.
-
-**Actualización 2026-08-25 — el destino real cambió:** el sitio terminó en **AWS S3 + CloudFront**
-primero, y ahora se está migrando a **AWS Amplify Hosting** conectado a
-`github.com/Ragnarsss/alienskilez-web` (rama `main`), no Vercel/Netlify como decía el texto
-original de este ticket. Tampoco es cierto ya que sea "sin variables de entorno": ALS-023 agregó
-`VITE_GA_MEASUREMENT_ID`, configurada como variable de entorno en la propia consola de Amplify (ver
-`.env.example`). Este ticket sigue sin actualizarse a fondo con ese cambio de infraestructura —
-pendiente, no urgente mientras el deploy funcione.
 
 ### ALS-046 — Pipeline de CI en GitHub Actions *(propuesto 2026-08-25, dispara la reversión de una ADR)*
 
@@ -841,7 +841,7 @@ vista. Ver ADR-5.
 | ALS-019 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
-| ALS-022 | F     | P0     | S        | En curso — migrando de S3 a AWS Amplify (ver nota en el ticket) | ALS-019, ALS-020 |
+| ALS-022 | F     | P0     | S        | En curso — AWS Amplify Hosting (ADR-16) | — |
 | ALS-023 | J     | **P1** | M        | Implementado, Measurement ID real cargado — falta verificación manual en GA4 Realtime tras el primer deploy exitoso a Amplify | — |
 | ALS-046 | F     | P2     | S        | Propuesto — revierte una ADR, no implementar sin ADR nueva | — |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |

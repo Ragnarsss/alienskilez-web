@@ -301,6 +301,8 @@ Spotify), función serverless (UI propia, pero introduce infraestructura), y seg
 **Decisión:** función serverless, desplegada en **AWS Lambda** (no Vercel/Netlify Functions,
 aunque técnicamente resolverían lo mismo) — el Productor ya opera en AWS y prefiere consolidar ahí
 en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (canal de contacto).
+**Nota (2026-08-25):** ese "tercer proveedor" ya no existe — ver ADR-16, el frontend también se
+consolidó en AWS (Amplify Hosting), así que hoy es un solo proveedor (AWS) + WhatsApp, no dos.
 **Diseño de la función (desplegado y probado — ver `backlog.md` ALS-026 y
 `aws/spotify-catalog/README.md` para el registro real del despliegue):**
 
@@ -470,6 +472,46 @@ registrada, y esta dice por qué cambió.
   obliga a más, esta ADR se revisa explícitamente — no se ignora en silencio, mismo criterio que
   se le aplicó a la ADR-23 original.
 - `docs/backlog.md` ALS-023 se actualiza para reflejar esta decisión con alcance concreto.
+
+### ADR-16 — Despliegue del sitio en AWS Amplify Hosting, no Vercel/Netlify (2026-08-25)
+
+**Contexto:** ALS-022 fijó como plan original "Vercel o Netlify conectado al repositorio" para un
+sitio 100% estático "sin variables de entorno". Ninguna de las dos cosas es cierta ya: el destino
+real terminó siendo AWS (primero S3 + CloudFront a mano, después AWS Amplify Hosting conectado a
+`github.com/Ragnarsss/alienskilez-web`, rama `main`), y ALS-023 sumó una variable de entorno real
+de build (`VITE_GA_MEASUREMENT_ID`). La decisión se tomó y se ejecutó sin ADR — el mismo tipo de
+gap que ADR-6 y ADR-11 ya corrigieron antes para otros casos: un documento de arquitectura que no
+refleja la infraestructura real deja de servir para lo único que sirve.
+**Decisión:** el sitio se despliega en **AWS Amplify Hosting**, con build automático
+(`npm run build`, salida `dist/`) disparado por cada push a `main` del repositorio conectado. Las
+variables de entorno de build (hoy solo `VITE_GA_MEASUREMENT_ID`) se cargan a mano en la consola
+de Amplify, nunca se comprometen al repo — `.env` sigue gitignored, `.env.example` documenta el
+nombre y formato esperado de cada una.
+**Por qué:** el mismo criterio que ya cerró ADR-11 para la Lambda del catálogo de Spotify —
+consolidar la infraestructura en un solo proveedor (AWS, donde el Productor ya opera) en vez de
+repartir el sitio entre Vercel/Netlify y la Lambda entre AWS. Con Amplify Hosting + la Lambda de
+ALS-026 en la misma cuenta, ya no hay una razón real para un segundo proveedor de hosting — el
+propio texto de ADR-11 ("en vez de sumar un tercer proveedor a Vercel/Netlify + WhatsApp") queda
+desactualizado por este cambio: ahora es un solo proveedor (AWS) + WhatsApp, no dos.
+**Alternativa(s) descartada(s):**
+- *Vercel/Netlify* (plan original de ALS-022) — habrían funcionado igual para un sitio estático,
+  pero dejaban de tener sentido una vez que la Lambda ya vive en AWS: dos proveedores de hosting en
+  vez de uno, sin beneficio que lo justifique.
+- *AWS S3 + CloudFront a mano* (paso intermedio real, no descartado por mal sino superado) — es lo
+  que se usó primero, pero exige armar el invalidations de CloudFront y el sync a S3 a mano en cada
+  deploy. Amplify Hosting da el mismo resultado (estático servido por CDN) con build+deploy
+  automático desde el repo, sin ese paso manual — se migró a Amplify por eso, no por un problema de
+  S3+CloudFront en sí.
+**Consecuencia:**
+- `README.md` (raíz) y `docs/backlog.md` (ALS-022) reflejan Amplify, no Vercel/Netlify.
+- Cualquier variable de entorno de build nueva se agrega en dos lugares: `.env.example` (con
+  comentario de qué es y por qué existe, mismo patrón que `VITE_GA_MEASUREMENT_ID` y
+  `VITE_SPOTIFY_CATALOG_URL`) y la consola de Amplify — nunca solo en el código.
+- **Ya hay un incidente real de este paso manual:** el primer build en Amplify falló porque el
+  *nombre* de la variable se cargó con un espacio de más en la consola (`VITE_GA_MEASUREMENT_ID `),
+  rompiendo el `define` de Vite en build time. `lint`/`test`/`build` locales no lo detectan porque
+  el dato vive en la consola de Amplify, no en el repo — ver ALS-046 (CI, propuesto, no
+  implementado) para la mitigación en evaluación.
 
 ## 7. Deuda conocida y diferida a propósito
 
