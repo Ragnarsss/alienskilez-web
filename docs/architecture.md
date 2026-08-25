@@ -513,6 +513,50 @@ desactualizado por este cambio: ahora es un solo proveedor (AWS) + WhatsApp, no 
   el dato vive en la consola de Amplify, no en el repo — ver ALS-046 (CI, propuesto, no
   implementado) para la mitigación en evaluación.
 
+**Incidentes del corte de DNS a `deotroplaneta.cl` (2026-08-25), en orden — cada uno pareció ser
+"el problema" hasta que dejó de serlo, documentados los cuatro porque cualquiera se puede repetir
+con otro dominio o otra cuenta:**
+
+1. **Se confundió un nameserver con un registro de recurso.** El primer intento de conectar el
+   dominio custom a Amplify puso el CNAME que Amplify pide (`*.cloudfront.net`) en el campo
+   "Servidores DNS" de NIC Chile — ese campo delega el dominio **entero** a otro proveedor de DNS,
+   no agrega un registro individual. Resultado: `deotroplaneta.cl` dejó de resolver del todo
+   (`Paquete DNS erróneo`), no solo el sitio web. Se detectó comparando la respuesta real de un
+   resolver público (`dns.google/resolve?type=NS`, que devolvía "Name servers did not respond"
+   contra las IPs de CloudFront) contra lo que mostraba el panel de NIC.
+2. **NIC Chile no tiene editor de registros A/CNAME — el DNS real vive en Route53.** El panel de
+   NIC solo permite delegar a nameservers externos o redirección web simple; no hay forma de cargar
+   un CNAME/ANAME ahí. El dominio ya estaba delegado a una hosted zone de **Route53** (misma cuenta
+   de AWS) desde el deploy original a S3+CloudFront — ahí es donde viven los registros de verdad.
+   Los cuatro nameservers de Route53 (`ns-301.awsdns-37.com`, `ns-1725.awsdns-23.co.uk`,
+   `ns-1195.awsdns-21.org`, `ns-784.awsdns-34.net`) se volvieron a cargar en el campo "Servidores
+   DNS" de NIC (deshaciendo el error del punto 1), y los registros `A` (alias) de
+   `deotroplaneta.cl`/`www` dentro de esa hosted zone se actualizaron por CLI para apuntar al
+   CloudFront de Amplify en vez del de S3.
+3. **La distribución CloudFront vieja (S3) seguía reteniendo el dominio como alias.** Aun con el
+   DNS bien apuntado, Amplify nunca terminaba de "activar" el dominio — CloudFront exige que un
+   nombre de dominio sea alias (`Alternate Domain Name`/CNAME) de **una sola distribución a la
+   vez, en toda la plataforma**, y la distribución original (`E1P9WI0FYS7WJ`, la de
+   S3+CloudFront a mano) seguía teniendo `deotroplaneta.cl` y `www.deotroplaneta.cl` registrados,
+   con el mismo certificado ACM. Amplify no podía reclamar un nombre que otra distribución ya
+   tenía tomado — el error visible en la consola (`One or more of the CNAMEs you provided are
+   already associated with a different resource`) lo decía explícito, pero apareció recién en un
+   reintento, no en el primer intento de activación. Se resolvió sacando los dos alias de la
+   distribución vieja (queda con el certificado default de CloudFront, sigue viva pero ya no
+   responde a ese dominio) — eso liberó el nombre para que Amplify pudiera terminar de asociarlo.
+4. **Cada vez que se "recreó" la asociación de dominio en Amplify, cambió el CloudFront de
+   destino.** Cancelar y volver a agregar el dominio personalizado en la consola de Amplify generó
+   un `*.cloudfront.net` distinto cada vez (`dn1h6asdvqa7r` → `d259su71nxgarh` → `d32vhbynsv1cm6`)
+   — el registro `A` (alias) en Route53 se tuvo que actualizar cada vez a mano para que coincidiera
+   con el valor vigente en ese momento. La lección: mirar siempre el modal "Registros DNS" de
+   Amplify **después** de cada acción sobre el dominio, no asumir que el valor de la vez anterior
+   sigue siendo el correcto.
+
+**Consecuencia de estos cuatro incidentes:** ALS-022 pasa a "En curso" con el dominio ya resolviendo
+de verdad — el detalle completo (comandos, valores, orden) queda documentado acá en vez de perderse
+en el historial de chat, para que si esto se repite con otro dominio (o alguien más lo hace en el
+futuro) no haga falta re-descubrir los cuatro pasos desde cero.
+
 ## 7. Deuda conocida y diferida a propósito
 
 Documentado como decisión, no como olvido:

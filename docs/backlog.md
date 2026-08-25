@@ -265,15 +265,25 @@ valor actual contra la documentación viva. Detalle completo en el README de la 
 
 ### ALS-027 — Integración con YouTube (mismo patrón que ALS-026)
 
-- Prioridad: P2 · Esfuerzo: M · Estado: Pendiente — depende de ALS-026
+- Prioridad: P2 · Esfuerzo: M · Estado: **Paso 0 hecho** (2026-08-25) — handler escrito, no
+  desplegado
 
-Mismo patrón de Lambda; puede ser un segundo handler dentro de la misma función o una función
-aparte, a decidir cuando se aborde. La YouTube Data API v3 usa una API key de solo lectura (no
-Client Credentials), así que su secreto es de menor sensibilidad que el de Spotify, pero se
-guarda igual en Secrets Manager, nunca en el bundle.
+Mismo patrón de Lambda que ALS-026 (ya Hecho), aplicado a YouTube Data API v3. Se decidió función
+aparte (`aws/youtube-catalog/`, no un segundo handler de `alienskilez-spotify-catalog`) — ver el
+porqué en `aws/youtube-catalog/README.md`. La API key de YouTube es de solo lectura (no Client
+Credentials), de menor sensibilidad que el `client_secret` de Spotify, pero se guarda igual en
+Secrets Manager, nunca en el bundle.
 
-**Bloqueado por:** que ALS-026 esté desplegado y probado primero — no tiene sentido resolver el
-patrón dos veces en paralelo.
+**Implementación:** `aws/youtube-catalog/index.mjs` — resuelve el playlist de "subidos" del canal
+(`channels.list`) y lo pagina (`playlistItems.list`), ambas de 1 unidad de cuota, en vez de
+`search.list` (100 unidades). Caché en memoria con TTL, mismo criterio que ALS-026. Contrato de
+respuesta documentado en el header del archivo (pensado para que ALS-045 lo consuma igual que
+`useDiscografia` consume el de Spotify).
+
+**Bloqueado por:** Channel ID real de YouTube y una API key de Google Cloud Console (ambos del
+Productor) — sin eso no se puede configurar Secrets Manager ni desplegar/verificar la función.
+El código no depende de ninguna de las dos cosas para escribirse (mismo "paso 0" que se hizo con
+ALS-026).
 
 ### ALS-028 — Hero: isotipo 3D giratorio
 
@@ -460,12 +470,20 @@ ALS-044 agregó `VITE_SPOTIFY_CATALOG_URL`, ambas cargadas a mano en la consola 
 `.env.example` para el contrato de cada una).
 
 **El plan original ataba esto a ALS-019 (Lighthouse/a11y) y ALS-020 (responsive) antes de
-desplegar — no se esperó.** El deploy real a Amplify ya existe y está en curso sin que esos dos
-sigan `Pendiente`, mismo patrón de "no esperó los datos" que ALS-041. No es un cierre limpio del
-ticket: falta correr el checklist de `quality-gates.md` §7 contra el sitio ya desplegado.
+desplegar — no se esperó.** El deploy real a Amplify ya existe sin que esos dos sigan `Pendiente`,
+mismo patrón de "no esperó los datos" que ALS-041. No es un cierre limpio del ticket: falta correr
+el checklist de `quality-gates.md` §7 contra el sitio ya desplegado.
 
-**Criterios:** dominio resolviendo; checklist final de [`quality-gates.md`](./quality-gates.md) §7
-completo.
+**Dominio custom (2026-08-25): `deotroplaneta.cl` ya resuelve al Amplify de verdad**, después de
+cuatro incidentes reales en el corte de DNS (nameserver mal cargado en NIC, DNS real viviendo en
+Route53 y no en NIC, conflicto de alias con la distribución CloudFront vieja de S3, y el target de
+CloudFront cambiando cada vez que se recreó la asociación del dominio en Amplify) — el detalle
+completo de cada uno y cómo se resolvió queda en
+[ADR-16](./architecture.md#adr-16--despliegue-del-sitio-en-aws-amplify-hosting-no-vercelnetlify-2026-08-25),
+no repetido acá.
+
+**Criterios:** ✅ dominio resolviendo (verificado 2026-08-25); ⏳ checklist final de
+[`quality-gates.md`](./quality-gates.md) §7 todavía no corrido contra el sitio ya desplegado.
 
 ### ALS-046 — Pipeline de CI en GitHub Actions *(propuesto 2026-08-25, dispara la reversión de una ADR)*
 
@@ -847,7 +865,7 @@ vista. Ver ADR-5.
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | ✅ Hecho                           | —                                 |
-| ALS-027 | G     | P2     | M        | Pendiente                          | Artist ID de YouTube (Productor)  |
+| ALS-027 | G     | P2     | M        | Paso 0 hecho — handler escrito, no desplegado | Channel ID + API key de YouTube (Productor) |
 | ALS-028 | G     | P2     | L        | ✅ Hecho                           | Asset definitivo: ALS-006        |
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
