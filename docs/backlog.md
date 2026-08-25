@@ -656,7 +656,7 @@ no acá.
 > **Sobre el tamaño de esta ficha.** Ocupaba cientos de líneas con el registro iteración por
 > iteración, cada una repitiendo sus cifras de bundle y su corrida de `lint`/`test`/`build`. Se
 > redujo aplicando la anatomía de ticket de §5: la evolución vive en los commits
-> (`c242989` → `65d7481` → `65c774c` → `ce1f5db` → `4cb14e4` → `4c5af36` → `<pendiente de commit>`),
+> (`c242989` → `65d7481` → `65c774c` → `ce1f5db` → `4cb14e4` → `4c5af36` → `697d196`),
 > los parámetros y su porqué en los comentarios de `constants/limits.ts`, y las cifras de bundle en
 > `quality-gates.md`.
 
