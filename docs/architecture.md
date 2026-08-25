@@ -301,7 +301,8 @@ Spotify), función serverless (UI propia, pero introduce infraestructura), y seg
 **Decisión:** función serverless, desplegada en **AWS Lambda** (no Vercel/Netlify Functions,
 aunque técnicamente resolverían lo mismo) — el Productor ya opera en AWS y prefiere consolidar ahí
 en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (canal de contacto).
-**Diseño de la función (especificado, no desplegado — ver el límite en `backlog.md` ALS-026):**
+**Diseño de la función (desplegado y probado — ver `backlog.md` ALS-026 y
+`aws/spotify-catalog/README.md` para el registro real del despliegue):**
 
 - **AWS Lambda con Function URL**, sin API Gateway — es un único endpoint `GET` de solo lectura,
   API Gateway sumaría cuotas y configuración que este caso no necesita.
@@ -320,11 +321,18 @@ en vez de sumar un tercer proveedor a Vercel/Netlify (frontend) + WhatsApp (cana
   seguía siendo válido — queda registrado como alternativa si la función Lambda no llega a
   justificarse en el uso real. La carga manual (opción descartada) es lo que ya existía y es
   exactamente el problema que este RF busca resolver.
-  **Límite honesto:** esta ADR fija el diseño, **no hay una sola línea escrita todavía**. Una
-  versión anterior de este documento afirmaba que el handler existía en `aws/spotify-catalog/`;
-  ese directorio nunca se creó. Queda corregido acá porque una ADR que declara trabajo inexistente
-  es peor que no tenerla: hace que el backlog mienta sobre el estado del proyecto. Ver `backlog.md`
-  ALS-026 y ALS-031 para el plan real.
+  **Actualización (2026-08-25):** desplegado y verificado contra la cuenta de AWS del Productor.
+  El handler vive en `aws/spotify-catalog/index.mjs`, con el registro real del despliegue (región,
+  secreto, variables de entorno, Function URL, qué se verificó) en
+  `aws/spotify-catalog/README.md`. Una versión anterior de esta ADR afirmó, dos veces, trabajo que
+  no existía todavía (primero un handler "de referencia" que nunca se escribió, después que "no
+  hay una sola línea escrita" cuando eso ya estaba a punto de corregirse) — se deja este historial
+  porque el patrón de error (declarar hecho lo que no está) ya se repitió y vale la pena que quede
+  visible, no solo corregido en silencio.
+  **Bug real de contrato encontrado en el despliegue:** el máximo de `limit` en
+  `GET /v1/artists/{id}/albums` cambió de 50 (valor histórico con el que se escribió el primer
+  borrador) a **10** — Spotify devolvía `400 Invalid limit` hasta verificarlo contra la
+  documentación viva. Detalle en el README de la función.
 
 ### ADR-12 — Isotipo del Hero: extrusión 3D real con `3dsvg`, cargada en diferido
 

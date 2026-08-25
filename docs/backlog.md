@@ -248,32 +248,22 @@ de AWS, credenciales que este entorno no tiene.
 
 ### ALS-026 — Integración directa con Spotify del artista (Lambda)
 
-- Prioridad: **P1** · Esfuerzo: M · Estado: **Pendiente** — diseño cerrado, sin código
+- Prioridad: **P1** · Esfuerzo: M · **Estado: Hecho** (2026-08-25)
 
-Decisión cerrada (ADR-11): función AWS Lambda con Function URL, secretos en Secrets Manager, CORS
-restringido, caché en memoria con TTL.
+Decisión cerrada en ADR-11: función AWS Lambda con Function URL, secretos en Secrets Manager, CORS
+restringido, caché en memoria con TTL. Implementación y registro real del despliegue en
+`aws/spotify-catalog/` (`index.mjs` + `README.md` — cuenta/región, secreto, variables de entorno,
+Function URL, qué se verificó).
 
-> **Corrección de estado (2026-08-13).** Este ticket estuvo marcado "parcialmente hecho, handler de
-> referencia escrito" y enlazaba a `aws/spotify-catalog/`. **Ese directorio nunca existió.** No hay
-> código escrito para esta integración. Se corrige porque un backlog que declara trabajo
-> inexistente deja de servir para lo único que sirve: saber qué falta.
+**Verificado:** `GET` público devuelve `200` con el catálogo real de ALIENSKILEZ (lanzamientos
+reales, no placeholder); CORS restringido a `deotroplaneta.cl`; caché en memoria confirmada.
 
-**Lo que falta, en orden:**
+**Bug real corregido en el camino:** el máximo de `limit` del endpoint de álbumes de Spotify ya no
+es 50 (valor histórico) sino **10** — Spotify devolvía `400 Invalid limit` hasta que se verificó el
+valor actual contra la documentación viva. Detalle completo en el README de la función.
 
-1. Cuenta/región de AWS donde desplegar (del Productor, ya que "el deploy es en AWS" pero sin
-   especificar cuál cuenta).
-2. `Spotify Artist ID` real de ALIENSKILEZ — ningún camino evita necesitarlo.
-3. Registrar la app en el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   para obtener `client_id`/`client_secret` y cargarlos en Secrets Manager.
-4. Desplegar la función (manual o con IaC — ver ALS-031) y anotar la Function URL resultante.
-5. Conectar el frontend: reemplazar la carga estática de `portfolio.ts` por un `fetch` a la
-   Function URL, con estado de carga — es el primer dato del sitio que no viene ya resuelto en el
-   bundle, así que necesita su propio skeleton (mismo criterio de "degradar, no romper" de ADR-6,
-   aplicado a un estado "cargando" en vez de a un dato pendiente).
-
-**Límite honesto:** sin credenciales de AWS ni el Artist ID real, los pasos 1 a 4 no se pueden
-ejecutar ni verificar. El paso 0 —escribir el handler— sí se puede hacer en cualquier momento y es
-lo único que no depende del Productor.
+**Desbloquea:** ALS-044 (sección Discografía del frontend, no implementada todavía — consume esta
+Function URL).
 
 ### ALS-027 — Integración con YouTube (mismo patrón que ALS-026)
 
@@ -339,16 +329,14 @@ dispositivo táctil).
 
 ### ALS-031 — Infraestructura AWS (IaC, cuenta, permisos)
 
-- Prioridad: P2 · Esfuerzo: M · Estado: Pendiente — bloquea el despliegue de ALS-026
+- Prioridad: P2 · Esfuerzo: M · **Estado: Hecho** (decisión: manual, no IaC — 2026-08-25)
 
-Definir cómo se despliega y versiona la infraestructura de `aws/spotify-catalog/`: manual desde la
-consola (rápido para un solo endpoint, pero no reproducible) vs. IaC (SAM, CDK o Terraform —
-reproducible y versionable, más setup inicial). Dado que hoy es una sola función Lambda con un
-único secreto, empezar manual y migrar a IaC si se suman más funciones es una secuencia razonable
-— no hay que resolverlo de una vez.
+Se decidió empezar manual (consola de AWS) en vez de IaC, como el propio ticket ya preveía como
+secuencia razonable para una sola función con un único secreto. El paso a paso real y la Function
+URL resultante quedan anotados en `aws/spotify-catalog/README.md`.
 
-**Criterios:** documentado el paso a paso real de despliegue una vez ejecutado contra la cuenta de
-AWS del Productor; la Function URL resultante queda anotada en `aws/spotify-catalog/README.md`.
+**Reabrir si:** se suma una segunda función (ALS-027, YouTube) y el proceso manual empieza a doler
+— entonces sí vale migrar a SAM/CDK/Terraform.
 
 ### ALS-032 — Motion cinematográfico: Lenis, cielo del Hero y "Signal Geometry"
 
@@ -764,8 +752,8 @@ justifica) y ALS-041 (si el preloader mejora o empeora la conversión).
 
 ### ALS-044 — Sección Discografía: catálogo de Spotify en vivo
 
-- Prioridad: P2 · Esfuerzo: M · Estado: Propuesto
-- Épica: G · Bloqueado por: ALS-026 (Lambda de Spotify desplegada)
+- Prioridad: P2 · Esfuerzo: M · Estado: Propuesto — **desbloqueado** (ALS-026 ya desplegada)
+- Épica: G · Function URL real anotada en `aws/spotify-catalog/README.md`
 
 Sección nueva, **distinta de Portfolio**. Portfolio sigue siendo curaduría editorial (los trabajos
 que ALIENSKILEZ elige destacar, con su rol y año); esta sección muestra el **catálogo completo y
@@ -786,9 +774,6 @@ para el portfolio, aplicado a una sección con propósito propio en vez de a un 
 **Criterios de aceptación:** la sección lista los lanzamientos reales del Artist ID configurado,
 respeta `prefers-reduced-motion` si lleva cualquier reveal, y no bloquea el LCP del resto de la
 página (carga diferida, mismo patrón que el motor 3D del Hero).
-
-**No implementar antes de:** ALS-026 desplegado y probado — no tiene sentido construir el consumidor
-antes de que el productor de datos exista.
 
 ### ALS-045 — Sección Video: catálogo de YouTube en vivo
 
@@ -862,14 +847,14 @@ vista. Ver ADR-5.
 | ALS-046 | F     | P2     | S        | Propuesto — revierte una ADR, no implementar sin ADR nueva | — |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
-| ALS-026 | G     | **P1** | M        | Pendiente — sin código todavía     | Cuenta AWS + Artist ID + ALS-031 |
-| ALS-027 | G     | P2     | M        | Pendiente                          | ALS-026 desplegado               |
+| ALS-026 | G     | **P1** | M        | ✅ Hecho                           | —                                 |
+| ALS-027 | G     | P2     | M        | Pendiente                          | Artist ID de YouTube (Productor)  |
 | ALS-028 | G     | P2     | L        | ✅ Hecho                           | Asset definitivo: ALS-006        |
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
-| ALS-031 | G     | P2     | M        | Pendiente                          | Cuenta AWS del Productor         |
+| ALS-031 | G     | P2     | M        | ✅ Hecho — manual, no IaC          | —                                 |
 | ALS-032 | G     | P2     | L        | ✅ Hecho                           | —                                |
-| ALS-044 | G     | P2     | M        | Propuesto                          | ALS-026 desplegado               |
+| ALS-044 | G     | P2     | M        | Propuesto — desbloqueado           | —                                 |
 | ALS-045 | G     | P3     | M        | Propuesto                          | ALS-027 desplegado, ALS-044      |
 | ALS-041 | I     | P3     | S        | ✅ Hecho — Lighthouse (ALS-019) todavía no corrido | — |
 | ALS-043 | I     | P2     | M        | ✅ Hecho — QA visual manual pendiente | —                |
@@ -897,8 +882,8 @@ vista. Ver ADR-5.
    los pares de audio autorizados y con niveles emparejados es lo que la hace pesada.
 4. **ALS-023** — el código ya está, falta configurar el Measurement ID real y verificar el embudo
    en GA4 Realtime: sin eso, ALS-024 y ALS-041 no tienen forma de resolverse con datos.
-5. **ALS-026** — en cuanto el Productor entregue cuenta de AWS y Artist ID. **ALS-044** es la
-   continuación natural una vez desplegado (mismo dato, sección propia en vez de Portfolio).
+5. ~~**ALS-026**~~ — hecho (2026-08-25). **ALS-044** es la continuación natural, ya desbloqueada
+   (mismo dato, sección propia en vez de Portfolio).
 6. **ALS-037** — en cuanto haya fotos.
 7. **ALS-045** — después de ALS-044, no en paralelo (mismo patrón, resolverlo una sola vez).
 8. Todo lo demás de la Épica I, al final y sin apuro.
