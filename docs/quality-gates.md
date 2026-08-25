@@ -21,17 +21,25 @@ consciente, ver `architecture.md` §7): los corre quien mergea.
 
 ## 2. Rendimiento
 
-### Línea base medida (2026-08-12, tras ALS-028)
+### Línea base medida (2026-08-24, tras ALS-023)
 
 | Artefacto | Crudo | Gzip | Cuándo se descarga |
 |---|---|---|---|
 | `index.html` | 1.64 kB | 0.69 kB | Siempre |
-| CSS | 35.84 kB | 7.46 kB | Siempre |
-| **JS inicial** | 496.69 kB | **157.27 kB** | Siempre |
+| CSS | 41.67 kB | 8.29 kB | Siempre |
+| **JS inicial** | 510.18 kB | **161.80 kB** | Siempre |
 | Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** | En diferido, solo el isotipo del Hero |
 
-**Lectura honesta:** el JS inicial **excede el umbral verde de 150 kB**. Está en amarillo y es
-consciente: lo explican React, Framer Motion, Lenis, zod y react-hook-form.
+**Lectura honesta:** el JS inicial **excede el umbral verde de 150 kB**. Sigue en amarillo (no
+cruza a rojo, umbral 250 kB) — la subida desde los 157.27 kB de la línea base anterior combina
+ALS-023 (consentimiento de cookies + wrapper de eventos, ~4 kB gzip propios — no `gtag.js`: ese
+script de Google se carga aparte, async, recién cuando el visitante acepta el aviso de cookies, así
+que no cuenta en este número) con cambios en paralelo del mazo de Servicios/isotipo (ALS-043,
+`ServiciosDeck.tsx`/`AlienMark3D.tsx`) que se guardaron mientras se medía esto. Medido con
+`npm run build` únicamente — **el resto de esta tabla (Performance/Accessibility/LCP/CLS/INP) no se
+re-corrió**: este entorno no tiene Chrome instalado para ejecutar Lighthouse. Pendiente correr
+`npx lighthouse http://localhost:4173 --view` (mobile) y `--preset=desktop` en una máquina con
+Chrome antes de dar ALS-019/ALS-024 por verificados con este cambio.
 
 El chunk 3D es el dato incómodo: **el doble que todo el resto del sitio junto**, para un elemento
 decorativo. Está aislado con `lazy()` (ADR-12), así que no bloquea el primer render — el texto y

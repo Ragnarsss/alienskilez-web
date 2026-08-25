@@ -5,8 +5,10 @@ import {
   SERVICE_OPTIONS,
   type BookingFormValues,
 } from "@/features/booking/booking.schema"
+import { ANALYTICS_EVENTS } from "@/shared/constants/analytics"
 import { SITE } from "@/shared/constants/site"
 import { buildWhatsAppUrl } from "@/shared/constants/whatsapp"
+import { trackEvent } from "@/shared/lib/analytics"
 
 /**
  * Arma el mensaje que se precarga en WhatsApp.
@@ -53,7 +55,26 @@ export function useBookingForm() {
   })
 
   const onSubmit = (data: BookingFormValues) => {
-    window.open(buildWhatsAppUrl(buildWhatsAppMessage(data)), "_blank", "noopener,noreferrer")
+    // Solo se llega acá si zod ya validó `data` (react-hook-form no invoca
+    // `onSubmit` si hay errores) — este es el punto de "envío válido" del
+    // embudo (ALS-023). Cero PII en el evento: ni `data.fullName` ni
+    // `data.message` viajan, solo el `tier` del servicio elegido.
+    const tier = SERVICE_OPTIONS.find((option) => option.id === data.serviceType)?.tier
+    trackEvent(ANALYTICS_EVENTS.FORM_SUBMIT, tier ? { tier } : undefined)
+
+    // Sin `noopener`/`noreferrer` en el string de features: con cualquiera
+    // de los dos, la especificación obliga a que el valor de retorno sea
+    // siempre `null` — no hay forma de distinguir "el navegador bloqueó el
+    // popup" (ALS-018) de "se abrió bien" si se usan. En vez de eso, se abre
+    // sin ellos y se anula `opener` a mano: mismo blindaje contra reverse
+    // tabnabbing, con un valor de retorno que sí sirve para medir.
+    const popup = window.open(buildWhatsAppUrl(buildWhatsAppMessage(data)), "_blank")
+    if (popup) {
+      popup.opener = null
+      trackEvent(ANALYTICS_EVENTS.WHATSAPP_OPEN, tier ? { tier } : undefined)
+    } else {
+      trackEvent(ANALYTICS_EVENTS.WHATSAPP_BLOCKED, tier ? { tier } : undefined)
+    }
   }
 
   return {

@@ -11,6 +11,7 @@ import { HERO_MARK, LIMITS } from "@/shared/constants/limits"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import { SITE } from "@/shared/constants/site"
 import { useMeasuredHeightPx } from "@/shared/hooks/useMeasuredHeightPx"
+import { trackCtaClick } from "@/shared/lib/analytics"
 import { useMouseAura } from "@/shared/hooks/useMouseAura"
 import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion"
 
@@ -263,6 +264,9 @@ export function Hero() {
                   variant="primary"
                   size="lg"
                   tabIndex={buttonsRevealed ? undefined : -1}
+                  onClick={() => {
+                    trackCtaClick("sesion")
+                  }}
                 >
                   {CTA.PRIMARY}
                 </Button>
@@ -271,6 +275,9 @@ export function Hero() {
                   variant="secondary"
                   size="lg"
                   tabIndex={buttonsRevealed ? undefined : -1}
+                  onClick={() => {
+                    trackCtaClick("proyecto")
+                  }}
                 >
                   {CTA.SECONDARY}
                 </Button>

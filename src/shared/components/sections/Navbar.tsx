@@ -6,6 +6,7 @@ import { anchor, NAV_LINKS, SECTION_IDS } from "@/shared/constants/sections"
 import { CTA } from "@/shared/constants/content"
 import { SITE } from "@/shared/constants/site"
 import { useScrolled } from "@/shared/hooks/useScrolled"
+import { trackCtaClick } from "@/shared/lib/analytics"
 
 export function Navbar() {
   const scrolled = useScrolled()
@@ -48,7 +49,14 @@ export function Navbar() {
           </ul>
 
           <div className="hidden md:block">
-            <Button href={anchor(SECTION_IDS.CONTACTO)} variant="primary" size="md">
+            <Button
+              href={anchor(SECTION_IDS.CONTACTO)}
+              variant="primary"
+              size="md"
+              onClick={() => {
+                trackCtaClick("sesion")
+              }}
+            >
               {CTA.PRIMARY}
             </Button>
           </div>
@@ -97,7 +105,10 @@ export function Navbar() {
             </ul>
             <Button
               href={anchor(SECTION_IDS.CONTACTO)}
-              onClick={closeMenu}
+              onClick={() => {
+                trackCtaClick("sesion")
+                closeMenu()
+              }}
               variant="primary"
               size="lg"
               className="mt-4 w-full"

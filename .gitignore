@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Variables de entorno (ALS-023): el Measurement ID de GA4 no es secreto per
+# se, pero no hay motivo para versionar el valor real por ambiente — ver
+# .env.example para la variable esperada.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
