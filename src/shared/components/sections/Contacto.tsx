@@ -22,7 +22,7 @@ const LABEL = "block text-sm font-medium tracking-tight"
 const MIN_DATE = todayAsInputValue()
 
 export function Contacto() {
-  const { form, submitForm } = useBookingForm()
+  const { form, submitForm, blockedWhatsAppUrl } = useBookingForm()
   const {
     register,
     watch,
@@ -36,7 +36,7 @@ export function Contacto() {
       <Container>
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <div>
-            <Kicker index="09" label="CONTACTO" className="mb-4" />
+            <Kicker index="10" label="CONTACTO" className="mb-4" />
             <h2 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl md:text-5xl">
               Tu próxima sesión empieza con <span className="text-accent">un solo mensaje</span>.
             </h2>
@@ -147,6 +147,27 @@ export function Contacto() {
               </div>
 
               <div>
+                <label htmlFor="soundReferenceUrl" className={LABEL}>
+                  Referencia de sonido <span className="text-text-muted">(opcional)</span>
+                </label>
+                <input
+                  id="soundReferenceUrl"
+                  type="url"
+                  inputMode="url"
+                  placeholder="Link de Spotify, YouTube o Drive — 'quiero que suene tipo esto'"
+                  className={`${FIELD} mt-2`}
+                  aria-invalid={Boolean(errors.soundReferenceUrl)}
+                  aria-describedby={errors.soundReferenceUrl ? "soundReferenceUrl-error" : undefined}
+                  {...register("soundReferenceUrl")}
+                />
+                {errors.soundReferenceUrl && (
+                  <p id="soundReferenceUrl-error" role="alert" className="mt-2 text-sm text-red-400">
+                    {errors.soundReferenceUrl.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
                 <label htmlFor="message" className={LABEL}>
                   Cuéntanos tu proyecto <span className="text-text-muted">(opcional)</span>
                 </label>
@@ -186,6 +207,34 @@ export function Contacto() {
             <p className="mt-4 text-center font-mono text-xs leading-relaxed text-text-muted">
               Se abre WhatsApp con el mensaje listo. Nada se envía hasta que tú lo hagas.
             </p>
+
+            {/*
+              ALS-018: `window.open` puede volver `null` si el navegador
+              bloqueó la pestaña emergente — sin esto, el clic no muestra
+              nada y el visitante cree que ya envió su consulta. `role="alert"`
+              para que un lector de pantalla lo anuncie apenas aparece, no
+              solo si alguien navega hasta acá. El link es un `<a>` real
+              (gesto de usuario) — a diferencia del `window.open` programático
+              que acaba de fallar, hacer clic en un link nunca lo bloquea un
+              navegador.
+            */}
+            {blockedWhatsAppUrl && (
+              <p
+                role="alert"
+                className="mt-4 rounded-sm border border-amber-500/50 bg-amber-500/10 p-3 text-center text-sm text-amber-300"
+              >
+                Tu navegador bloqueó la ventana de WhatsApp.{" "}
+                <a
+                  href={blockedWhatsAppUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-accent underline underline-offset-2 hover:brightness-125"
+                >
+                  Hacé clic acá para abrirla
+                </a>
+                .
+              </p>
+            )}
           </form>
         </div>
       </Container>

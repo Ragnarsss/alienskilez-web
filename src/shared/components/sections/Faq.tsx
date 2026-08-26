@@ -7,7 +7,7 @@ export function Faq() {
   return (
     <Section
       id={SECTION_IDS.FAQ}
-      index="08"
+      index="09"
       kicker="PREGUNTAS"
       geometry="hex"
       title="Antes de escribir"

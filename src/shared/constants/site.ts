@@ -15,8 +15,10 @@ export const SITE = {
  *
  * PENDIENTE DE VERIFICAR ANTES DE PUBLICAR:
  * - Instagram: handle confirmado por el cliente (@alienskilez).
- * - YouTube: construido desde el mismo seudónimo asumiendo handle moderno
- *   (@alienskilez). Verificar que la URL resuelva antes del deploy.
+ * - YouTube: resuelto (2026-08-25) — @alienskilez es un canal real y activo,
+ *   verificado contra la página pública (no solo asumido por el seudónimo).
+ *   Channel ID real `UCTEBjTNvuyP9APPGqFxRtWw`, para configurar ALS-027 —
+ *   ver `aws/youtube-catalog/README.md`.
  * - Spotify: resuelto (2026-08-25, ALS-002) — mismo Artist ID confirmado por
  *   el cliente que usa la Lambda del catálogo (ALS-026).
  */

@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import {
   bookingSchema,
@@ -27,11 +28,13 @@ export function buildWhatsAppMessage(data: BookingFormValues): string {
       : `Quiero cotizar un proyecto de: ${serviceLabel}.`
 
   const trimmedMessage = data.message?.trim()
+  const trimmedSoundReference = data.soundReferenceUrl?.trim()
 
   const lines = [
     `Hola ${SITE.NAME}, soy ${data.fullName.trim()}.`,
     intent,
     data.preferredDate ? `Fecha estimada: ${data.preferredDate}.` : null,
+    trimmedSoundReference ? `Referencia de sonido: ${trimmedSoundReference}` : null,
     trimmedMessage ? `Detalle: ${trimmedMessage}` : null,
   ].filter((line): line is string => line !== null)
 
@@ -45,6 +48,7 @@ export const BOOKING_DEFAULT_VALUES: BookingFormValues = {
   serviceType: "",
   preferredDate: "",
   message: "",
+  soundReferenceUrl: "",
 }
 
 export function useBookingForm() {
@@ -54,6 +58,15 @@ export function useBookingForm() {
     mode: "onTouched",
   })
 
+  // `null` mientras no haya un intento bloqueado — ALS-018: `window.open`
+  // puede devolver `null` si el navegador bloquea la pestaña emergente, y
+  // sin esto el visitante hace clic y no ve pasar nada, creyendo que ya
+  // envió su consulta. Guarda la URL YA armada (mensaje incluido) para que
+  // el componente pueda ofrecer un link real que la abra — un click directo
+  // sobre un `<a>` es gesto de usuario, no lo bloquea el navegador aunque
+  // `window.open` programático sí lo haya bloqueado.
+  const [blockedWhatsAppUrl, setBlockedWhatsAppUrl] = useState<string | null>(null)
+
   const onSubmit = (data: BookingFormValues) => {
     // Solo se llega acá si zod ya validó `data` (react-hook-form no invoca
     // `onSubmit` si hay errores) — este es el punto de "envío válido" del
@@ -62,17 +75,21 @@ export function useBookingForm() {
     const tier = SERVICE_OPTIONS.find((option) => option.id === data.serviceType)?.tier
     trackEvent(ANALYTICS_EVENTS.FORM_SUBMIT, tier ? { tier } : undefined)
 
+    const url = buildWhatsAppUrl(buildWhatsAppMessage(data))
+
     // Sin `noopener`/`noreferrer` en el string de features: con cualquiera
     // de los dos, la especificación obliga a que el valor de retorno sea
     // siempre `null` — no hay forma de distinguir "el navegador bloqueó el
     // popup" (ALS-018) de "se abrió bien" si se usan. En vez de eso, se abre
     // sin ellos y se anula `opener` a mano: mismo blindaje contra reverse
     // tabnabbing, con un valor de retorno que sí sirve para medir.
-    const popup = window.open(buildWhatsAppUrl(buildWhatsAppMessage(data)), "_blank")
+    const popup = window.open(url, "_blank")
     if (popup) {
       popup.opener = null
+      setBlockedWhatsAppUrl(null)
       trackEvent(ANALYTICS_EVENTS.WHATSAPP_OPEN, tier ? { tier } : undefined)
     } else {
+      setBlockedWhatsAppUrl(url)
       trackEvent(ANALYTICS_EVENTS.WHATSAPP_BLOCKED, tier ? { tier } : undefined)
     }
   }
@@ -80,5 +97,6 @@ export function useBookingForm() {
   return {
     form,
     submitForm: form.handleSubmit(onSubmit),
+    blockedWhatsAppUrl,
   }
 }

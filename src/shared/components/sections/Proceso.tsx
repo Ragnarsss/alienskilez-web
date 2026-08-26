@@ -8,7 +8,7 @@ export function Proceso() {
   return (
     <Section
       id={SECTION_IDS.PROCESO}
-      index="06"
+      index="07"
       kicker="PROCESO"
       geometry="chevrons"
       title="Cómo se agenda"
