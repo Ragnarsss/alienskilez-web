@@ -12,6 +12,7 @@ const VALID = {
   serviceType: "mezcla",
   preferredDate: "",
   message: "",
+  soundReferenceUrl: "",
 }
 
 describe("bookingSchema", () => {
@@ -69,6 +70,37 @@ describe("bookingSchema", () => {
       message: "x".repeat(LIMITS.BOOKING_MESSAGE_MAX_LENGTH),
     })
     expect(result.success).toBe(true)
+  })
+
+  describe("soundReferenceUrl", () => {
+    it("acepta que venga vacío (es opcional)", () => {
+      expect(bookingSchema.safeParse({ ...VALID, soundReferenceUrl: "" }).success).toBe(true)
+    })
+
+    it("acepta una URL válida", () => {
+      const result = bookingSchema.safeParse({
+        ...VALID,
+        soundReferenceUrl: "https://open.spotify.com/track/abc123",
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it("rechaza un valor que no es una URL", () => {
+      const result = bookingSchema.safeParse({ ...VALID, soundReferenceUrl: "quiero que suene así" })
+      expect(result.success).toBe(false)
+      expect(result.error?.issues[0]?.message).toBe(
+        "Ingresa un enlace válido (ej. Spotify, YouTube, Drive)",
+      )
+    })
+
+    it("rechaza una URL por sobre el largo máximo", () => {
+      const longPath = "x".repeat(LIMITS.BOOKING_SOUND_REFERENCE_URL_MAX_LENGTH)
+      const result = bookingSchema.safeParse({
+        ...VALID,
+        soundReferenceUrl: `https://example.com/${longPath}`,
+      })
+      expect(result.success).toBe(false)
+    })
   })
 
   describe("preferredDate", () => {
@@ -132,6 +164,19 @@ describe("buildWhatsAppMessage", () => {
     expect(message).toContain("Fecha estimada: 2026-09-30.")
   })
 
+  it("omite la referencia de sonido cuando no se indicó", () => {
+    const message = buildWhatsAppMessage({ ...VALID, soundReferenceUrl: "" })
+    expect(message).not.toContain("Referencia de sonido")
+  })
+
+  it("incluye la referencia de sonido cuando se indicó", () => {
+    const message = buildWhatsAppMessage({
+      ...VALID,
+      soundReferenceUrl: "https://open.spotify.com/track/abc123",
+    })
+    expect(message).toContain("Referencia de sonido: https://open.spotify.com/track/abc123")
+  })
+
   it("omite el detalle cuando el mensaje viene vacío o en blanco", () => {
     expect(buildWhatsAppMessage({ ...VALID, message: "" })).not.toContain("Detalle")
     expect(buildWhatsAppMessage({ ...VALID, message: "   " })).not.toContain("Detalle")
@@ -147,6 +192,7 @@ describe("buildWhatsAppMessage", () => {
       fullName: "  Kali  ",
       serviceType: "produccion",
       preferredDate: "2026-10-02",
+      soundReferenceUrl: "https://open.spotify.com/track/abc123",
       message: "Busco un sonido tipo trap melódico.",
     })
 
@@ -155,6 +201,7 @@ describe("buildWhatsAppMessage", () => {
         `Hola ${SITE.NAME}, soy Kali.`,
         "Quiero agendar una sesión de: Producción musical.",
         "Fecha estimada: 2026-10-02.",
+        "Referencia de sonido: https://open.spotify.com/track/abc123",
         "Detalle: Busco un sonido tipo trap melódico.",
       ].join("\n"),
     )

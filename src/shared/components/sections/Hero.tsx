@@ -234,10 +234,17 @@ export function Hero() {
                 </h1>
               </div>
 
-              <p
-                aria-label={SUBHEAD_TEXT}
-                className="mt-7 max-w-2xl text-lg leading-relaxed text-text-muted sm:text-xl"
-              >
+              {/*
+                `aria-label` en un `<p>` es un atributo ARIA prohibido (un
+                párrafo no tiene un rol que soporte "naming") — Lighthouse lo
+                marca como error real (`aria-prohibited-attr`, auditoría
+                ALS-019). Mismo arreglo que ya usa `Kicker.tsx` para el mismo
+                problema (texto real partido en spans animados por palabra,
+                todos `aria-hidden`): un `sr-only` con el texto completo al
+                lado, en vez de un atributo ARIA que el elemento no soporta.
+              */}
+              <p className="mt-7 max-w-2xl text-lg leading-relaxed text-text-muted sm:text-xl">
+                <span className="sr-only">{SUBHEAD_TEXT}</span>
                 <span aria-hidden="true">
                   {SUBHEAD_WORDS.map((word, index) => (
                     <SubheadWord

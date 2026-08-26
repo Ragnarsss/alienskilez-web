@@ -3,6 +3,8 @@ export const LIMITS = {
   BOOKING_NAME_MIN_LENGTH: 2,
   BOOKING_NAME_MAX_LENGTH: 80,
   BOOKING_MESSAGE_MAX_LENGTH: 600,
+  /** Largo máximo del campo opcional de referencia de sonido (ALS-036) — un enlace, no un párrafo. */
+  BOOKING_SOUND_REFERENCE_URL_MAX_LENGTH: 300,
   /** Scroll en píxeles a partir del cual el navbar toma fondo sólido. */
   NAVBAR_SCROLLED_OFFSET: 24,
   /**

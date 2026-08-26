@@ -45,6 +45,22 @@ export const bookingSchema = z.object({
       `Máximo ${LIMITS.BOOKING_MESSAGE_MAX_LENGTH} caracteres`,
     )
     .optional(),
+  // Vacío se omite (ver `useBookingForm.ts`, no viaja en el mensaje) — el
+  // `.refine` evita que un enlace mal pegado (falta el "https://", un typo)
+  // llegue tal cual al mensaje de WhatsApp sin que nadie lo note (ALS-036).
+  // No fuerza una plataforma específica (Spotify/YouTube/Drive/lo que sea):
+  // cualquier URL válida sirve como referencia.
+  soundReferenceUrl: z
+    .string()
+    .trim()
+    .max(
+      LIMITS.BOOKING_SOUND_REFERENCE_URL_MAX_LENGTH,
+      `Máximo ${LIMITS.BOOKING_SOUND_REFERENCE_URL_MAX_LENGTH} caracteres`,
+    )
+    .optional()
+    .refine((value) => !value || z.string().url().safeParse(value).success, {
+      message: "Ingresa un enlace válido (ej. Spotify, YouTube, Drive)",
+    }),
 })
 
 export type BookingFormValues = z.infer<typeof bookingSchema>

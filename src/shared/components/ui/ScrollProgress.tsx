@@ -1,5 +1,6 @@
 import { motion, useScroll, useSpring } from "framer-motion"
 import { LIMITS } from "@/shared/constants/limits"
+import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion"
 
 /**
  * Barra fija de progreso de scroll de TODA la página (ALS-040). `useScroll()`
@@ -16,14 +17,25 @@ import { LIMITS } from "@/shared/constants/limits"
  * compuesto por la GPU sin relayout, mismo motivo por el que
  * `SERVICES_DECK_*`/`Hero.tsx` mueven todo por `x`/`y`/`scale` en vez de
  * propiedades de layout.
+ *
+ * `usePrefersReducedMotion()` propio — hallazgo real de la auditoría de
+ * accesibilidad (`design-system.md` §6, punto 3): `MotionConfig` NO cubre
+ * motion imperativo (`useScroll`/`useSpring` fuera de props declarativas),
+ * cada uno necesita su propio chequeo. La barra en sí SIGUE, informa
+ * posición real de scroll — no es el tipo de movimiento que dispara
+ * mareo/vestibular (nada de escala grande, paralaje ni rebote); lo único
+ * que se apaga es el SUAVIZADO del spring, usando el valor crudo de
+ * `scrollYProgress` directo cuando el visitante pidió menos movimiento.
  */
 export function ScrollProgress() {
   const { scrollYProgress } = useScroll()
-  const scaleX = useSpring(scrollYProgress, {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const smoothScaleX = useSpring(scrollYProgress, {
     stiffness: LIMITS.SCROLL_PROGRESS_SPRING_STIFFNESS,
     damping: LIMITS.SCROLL_PROGRESS_SPRING_DAMPING,
     restDelta: 0.001,
   })
+  const scaleX = prefersReducedMotion ? scrollYProgress : smoothScaleX
 
   return (
     <div className="fixed inset-x-0 top-0 z-60 h-0.75 bg-border/40" aria-hidden="true">
