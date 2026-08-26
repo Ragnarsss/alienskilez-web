@@ -189,6 +189,48 @@ export const LIMITS = {
    * no en diagonal pareja.
    */
   SERVICES_DECK_ALIEN_ARC_Y_PX: 40,
+  /** Rigidez del spring que suaviza la barra de progreso de scroll (ALS-040). Más alto = sigue más de cerca. */
+  SCROLL_PROGRESS_SPRING_STIFFNESS: 300,
+  /** Amortiguación del spring de la barra de progreso — evita que rebote al frenar. */
+  SCROLL_PROGRESS_SPRING_DAMPING: 40,
+  /**
+   * Presupuesto de scroll (vh) del pin del carrusel de Video (ALS-045, 2ª
+   * iteración) — mismo criterio que `SERVICES_DECK_RUNWAY_VH`/
+   * `HERO_PIN_RUNWAY_VH`: fijo, no multiplicado por la cantidad de videos.
+   */
+  VIDEO_CAROUSEL_RUNWAY_VH: 120,
+  /**
+   * Ancho (px) de una card del carrusel de Video — grande a propósito
+   * (pedido explícito del usuario: "que sobresalga por los bordes", viendo
+   * el showcase de referencia). El carrusel es full-bleed (`VideoCarousel.tsx`,
+   * escapa del `Container`), así que este tamaño se mide contra el ancho
+   * real de la ventana, no contra `max-w-6xl`.
+   */
+  VIDEO_CAROUSEL_CARD_WIDTH_PX: 640,
+  /** Espacio (px) entre cards del carrusel de Video. */
+  VIDEO_CAROUSEL_GAP_PX: 48,
+  /**
+   * Escala de la card que está exactamente centrada en la ventana del pin —
+   * referencia visual explícita del usuario (lenis.darkroom.engineering
+   * showcase): la card "actual" se ve más grande que sus vecinas, como foco
+   * de una cámara. `1` en la referencia sería "sin foco" — se sube apenas
+   * arriba de eso, sutil, no un zoom dramático.
+   */
+  VIDEO_CAROUSEL_FOCUS_SCALE_MAX: 1.05,
+  /** Escala de una card lejos del centro del pin — ver `VIDEO_CAROUSEL_FOCUS_SCALE_MAX`. */
+  VIDEO_CAROUSEL_FOCUS_SCALE_MIN: 0.9,
+  /** Distancia (px) al centro de la ventana del pin a la que una card llega a `FOCUS_SCALE_MIN`. */
+  VIDEO_CAROUSEL_FOCUS_RANGE_PX: 700,
+  /**
+   * Segundo (del video real) donde arranca la vista previa en hover del
+   * carrusel — no en 0: el arranque de un video suele ser un logo/intro
+   * estático, y el punto donde ya hay contenido real varía por video, así
+   * que arrancar unos segundos adentro da más chance de mostrar algo con
+   * movimiento en los 10s de loop.
+   */
+  VIDEO_CAROUSEL_PREVIEW_START_S: 5,
+  /** Segundo donde corta el loop de la vista previa — `START_S` + 10s reales, pedido explícito del usuario. */
+  VIDEO_CAROUSEL_PREVIEW_END_S: 15,
 } as const
 
 /** Media queries con nombre. Ningún string de breakpoint suelto en los componentes. */

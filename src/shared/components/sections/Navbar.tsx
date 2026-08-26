@@ -8,6 +8,20 @@ import { SITE } from "@/shared/constants/site"
 import { useScrolled } from "@/shared/hooks/useScrolled"
 import { trackCtaClick } from "@/shared/lib/analytics"
 
+/**
+ * `Contacto` no se repite como link de texto en la fila de desktop — el CTA
+ * de la derecha ya apunta ahí (mismo anchor), y listarlo dos veces era
+ * redundante. Sigue en el menú móvil completo, abajo, porque ese sí es la
+ * única navegación disponible en esa vista.
+ */
+const DESKTOP_NAV_LINKS = NAV_LINKS.filter((link) => link.id !== SECTION_IDS.CONTACTO)
+const DESKTOP_NAV_SPLIT = Math.ceil(DESKTOP_NAV_LINKS.length / 2)
+const DESKTOP_NAV_LEFT = DESKTOP_NAV_LINKS.slice(0, DESKTOP_NAV_SPLIT)
+const DESKTOP_NAV_RIGHT = DESKTOP_NAV_LINKS.slice(DESKTOP_NAV_SPLIT)
+
+const DESKTOP_LINK_CLASS =
+  "font-mono text-xs tracking-[0.18em] text-text-muted uppercase transition-colors hover:text-accent"
+
 export function Navbar() {
   const scrolled = useScrolled()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -26,29 +40,49 @@ export function Navbar() {
       )}
     >
       <Container>
-        <nav aria-label="Navegación principal" className="flex h-16 items-center justify-between">
+        {/*
+          Logo CENTRADO, links flanqueándolo a los costados — referencia
+          visual explícita del usuario (showcase de lenis.darkroom.engineering).
+          Un solo `<nav>` (un solo landmark, un solo juego de links en el DOM,
+          no dos árboles paralelos): en mobile es el flex de siempre
+          (logo a la izquierda, hamburguesa a la derecha, todo lo demás
+          `hidden`); en `md:` pasa a grid de 3 columnas y `md:order-*`
+          reordena visualmente sin tocar el DOM. El botón hamburguesa
+          desaparece del todo en `md:` (`display: none`), así que no cuenta
+          como cuarta columna del grid.
+        */}
+        <nav
+          aria-label="Navegación principal"
+          className="flex h-16 items-center justify-between md:grid md:grid-cols-[1fr_auto_1fr] md:gap-6"
+        >
           <a
             href={anchor(SECTION_IDS.MAIN)}
-            className="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-[0.18em] text-accent transition-[filter] hover:brightness-125"
+            className="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-[0.18em] text-accent transition-[filter] hover:brightness-125 md:order-2 md:justify-self-center"
           >
             <span className="radar-ping" aria-hidden="true" />
             {SITE.NAME}
           </a>
 
-          <ul className="hidden items-center gap-8 md:flex">
-            {NAV_LINKS.map((link) => (
+          <ul className="hidden md:order-1 md:flex md:items-center md:gap-8 md:justify-self-start">
+            {DESKTOP_NAV_LEFT.map((link) => (
               <li key={link.id}>
-                <a
-                  href={anchor(link.id)}
-                  className="text-sm text-text-muted transition-colors hover:text-accent"
-                >
+                <a href={anchor(link.id)} className={DESKTOP_LINK_CLASS}>
                   {link.label}
                 </a>
               </li>
             ))}
           </ul>
 
-          <div className="hidden md:block">
+          <div className="hidden md:order-3 md:flex md:items-center md:gap-8 md:justify-self-end">
+            <ul className="flex items-center gap-8">
+              {DESKTOP_NAV_RIGHT.map((link) => (
+                <li key={link.id}>
+                  <a href={anchor(link.id)} className={DESKTOP_LINK_CLASS}>
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
             <Button
               href={anchor(SECTION_IDS.CONTACTO)}
               variant="primary"

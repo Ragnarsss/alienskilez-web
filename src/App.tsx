@@ -11,8 +11,10 @@ import { Portfolio } from "@/shared/components/sections/Portfolio"
 import { Proceso } from "@/shared/components/sections/Proceso"
 import { Servicios } from "@/shared/components/sections/Servicios"
 import { Testimonios } from "@/shared/components/sections/Testimonios"
+import { Video } from "@/shared/components/sections/Video"
 import { CookieConsent } from "@/shared/components/ui/CookieConsent"
 import { Preloader } from "@/shared/components/ui/Preloader"
+import { ScrollProgress } from "@/shared/components/ui/ScrollProgress"
 import { anchor, SECTION_IDS } from "@/shared/constants/sections"
 import { useLenis } from "@/shared/hooks/useLenis"
 
@@ -27,6 +29,7 @@ export default function App() {
     // animaciones instantáneas, o viceversa.
     <MotionConfig reducedMotion="never">
       <Preloader />
+      <ScrollProgress />
 
       <a
         href={anchor(SECTION_IDS.MAIN)}
@@ -43,6 +46,7 @@ export default function App() {
         <Servicios />
         <Portfolio />
         <Discografia />
+        <Video />
         <Alcance />
         <Proceso />
         <Testimonios />

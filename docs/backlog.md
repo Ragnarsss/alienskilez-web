@@ -54,15 +54,14 @@ ALS-002). Business suma catálogo, respuestas rápidas y estadísticas que el pe
 
 ### ALS-002 — URL del perfil de Spotify
 
-- Prioridad: P2 · Esfuerzo: S · Estado: Parcial — Spotify resuelto (2026-08-25), falta YouTube
+- Prioridad: P2 · Esfuerzo: S · **Estado: Hecho** (2026-08-25)
 
-**Spotify: hecho.** El Artist ID real (el mismo que configura la Lambda de ALS-026) ya está cargado
-en `SITE.SOCIALS`, `pending: false`.
+**Spotify:** el Artist ID real (el mismo que configura la Lambda de ALS-026) ya está cargado en
+`SITE.SOCIALS`, `pending: false`.
 
-**Falta:** verificar que `youtube.com/@alienskilez` resuelva; se construyó asumiendo que el handle
-coincide con el de Instagram, sin confirmarlo.
-
-**Criterios:** la URL de YouTube abre el perfil correcto.
+**YouTube:** verificado (2026-08-25) — `youtube.com/@alienskilez` es un canal real y activo, no
+solo asumido por el seudónimo (confirmado leyendo el `externalId` embebido en la página pública,
+Channel ID `UCTEBjTNvuyP9APPGqFxRtWw`, ver `aws/youtube-catalog/README.md`).
 
 ### ALS-003 — Créditos reales del portfolio
 
@@ -221,6 +220,15 @@ Navbar fijo con CTA persistente y menú móvil accesible. Hero con titular de co
 pasa la regla `react-hooks/set-state-in-effect`, y esta versión además evita el parpadeo inicial
 (ADR-9).
 
+**Rework del layout de desktop (2026-08-25) — referencia visual explícita del usuario (showcase
+de lenis.darkroom.engineering):** logo centrado, links flanqueando a los costados (2 y 2, sin
+repetir "Contacto" como link de texto — el CTA de la derecha ya apunta ahí), tipografía de los
+links a `font-mono uppercase tracking-[0.18em]` (mismo lenguaje que `.kicker`, no el sans bold
+genérico de la referencia — consistente con la identidad "instrumental técnica" del proyecto).
+Un solo `<nav>`/un solo juego de links en el DOM: mobile sigue siendo el flex de siempre (logo +
+hamburguesa), desktop pasa a grid de 3 columnas con `md:order-*` reordenando visualmente sin
+duplicar markup. Menú móvil sin cambios (sigue con los 5 links completos + CTA).
+
 ### ALS-015 — Secciones informativas y de prueba social
 
 - Prioridad: P1 · Esfuerzo: L · **Estado: Hecho**
@@ -265,8 +273,7 @@ valor actual contra la documentación viva. Detalle completo en el README de la 
 
 ### ALS-027 — Integración con YouTube (mismo patrón que ALS-026)
 
-- Prioridad: P2 · Esfuerzo: M · Estado: **Paso 0 hecho** (2026-08-25) — handler escrito, no
-  desplegado
+- Prioridad: P2 · Esfuerzo: M · **Estado: Hecho** (2026-08-25)
 
 Mismo patrón de Lambda que ALS-026 (ya Hecho), aplicado a YouTube Data API v3. Se decidió función
 aparte (`aws/youtube-catalog/`, no un segundo handler de `alienskilez-spotify-catalog`) — ver el
@@ -280,10 +287,15 @@ Secrets Manager, nunca en el bundle.
 respuesta documentado en el header del archivo (pensado para que ALS-045 lo consuma igual que
 `useDiscografia` consume el de Spotify).
 
-**Bloqueado por:** Channel ID real de YouTube y una API key de Google Cloud Console (ambos del
-Productor) — sin eso no se puede configurar Secrets Manager ni desplegar/verificar la función.
-El código no depende de ninguna de las dos cosas para escribirse (mismo "paso 0" que se hizo con
-ALS-026).
+**Channel ID:** `UCTEBjTNvuyP9APPGqFxRtWw`, canal `@alienskilez` (verificado real y activo,
+mismo handle que ya estaba en `SITE.SOCIALS`).
+
+**Verificado:** `GET` público devuelve `200` con el catálogo real de ALIENSKILEZ (9 videos, no
+placeholder); CORS restringido a `deotroplaneta.cl`. Detalle del despliegue (cuenta, región,
+secreto, variables de entorno, Function URL) en `aws/youtube-catalog/README.md`.
+
+**Desbloqueó:** ALS-045 (sección Video del frontend), a construir reutilizando el patrón de
+`useDiscografia`.
 
 ### ALS-028 — Hero: isotipo 3D giratorio
 
@@ -512,6 +524,39 @@ no se confirmó el alcance final.
 puntual que lo disparó (config de la consola de Amplify) salvo que el propio workflow buildee con
 las mismas variables de entorno que usa Amplify — a definir si vale la pena esa duplicación.
 
+### ALS-047 — Zero trust en la infra de AWS *(propuesto 2026-08-25)*
+
+- Prioridad: P3 · Esfuerzo: M · Estado: Propuesto — **no implementado todavía**
+
+**Alcance real, no el término genérico.** Este sitio no tiene una red interna que "perimetrar" —
+es un frontend estático en Amplify más dos funciones Lambda de solo lectura (ALS-026, ALS-027).
+"Zero trust" acá no significa traer un producto o arquitectura nueva; significa auditar y
+endurecer los cuatro puntos de confianza implícita que sí existen hoy:
+
+1. **IAM de las Lambdas** — verificar que el rol de ejecución de `alienskilez-spotify-catalog` y
+   `alienskilez-youtube-catalog` tenga *solo* `secretsmanager:GetSecretValue` restringido al ARN
+   de su propio secreto (no `secretsmanager:*`, no acceso al secreto de la otra función) y
+   ninguna policy administrada de más que el template de Lambda haya agregado por default.
+2. **Alcance de las API keys/credenciales** — confirmar en Google Cloud Console que la API key de
+   YouTube está restringida a la YouTube Data API v3 (no "sin restricción"), y en el Spotify
+   Developer Dashboard que el `client_id`/`client_secret` no tiene scopes de escritura que Client
+   Credentials no necesita.
+3. **CORS de las Function URLs** — ambas ya están restringidas a `deotroplaneta.cl` (ver
+   `aws/spotify-catalog/README.md` y `aws/youtube-catalog/README.md`), pero **la entrada de
+   `localhost:5173`** sigue cargada en las dos para desarrollo — sacarla es parte de este ticket,
+   no un aparte.
+4. **Nadie más con permisos de deploy que quien los necesita** — auditar quién tiene acceso a la
+   cuenta de AWS del Productor y a qué nivel (consola completa vs. permisos acotados a Lambda +
+   Secrets Manager + Amplify), y si corresponde crear un usuario/rol IAM separado para quien
+   despliega en vez de compartir la cuenta raíz.
+
+**Fuera de alcance, a propósito:** WAF, mTLS entre servicios, VPC privada — no hay tráfico
+interno servicio-a-servicio que proteger; las Function URLs son públicas por diseño (ADR-11) y
+eso no cambia acá.
+
+**Bloqueado por:** acceso de solo-lectura a la consola de AWS del Productor para auditar IAM —
+sin eso, el punto 1 y 4 no se pueden verificar, solo declarar como pendiente.
+
 ---
 
 ---
@@ -632,10 +677,19 @@ la sensación de recorrido continuo que el Hero con scroll-pin ya insinúa.
 
 ### ALS-040 — Indicador de progreso y navegación por secciones
 
-- Prioridad: P3 · Esfuerzo: S · Estado: Propuesto
+- Prioridad: P3 · Esfuerzo: S · **Estado: Parcial** (2026-08-25) — barra de progreso hecha,
+  marcadores de navegación por secciones no incluidos
 
 Barra o marcadores laterales que muestren dónde está el visitante en el recorrido. En un one-pager
 largo, saber cuánto falta reduce el abandono.
+
+**Hecho:** `ScrollProgress.tsx` — barra fija (3px) en el borde superior de toda la página,
+`scaleX` sobre `scrollYProgress` (framer-motion, `useScroll()` sin `target` — progreso del
+documento completo) suavizado con `useSpring`. Pedido de paso al construir el carrusel de Video
+(ALS-045, 2ª iteración), no un ticket aparte trabajado de forma aislada.
+
+**Falta:** los marcadores/navegación por secciones del alcance original — no se construyeron,
+no inventar que sí.
 
 ### ALS-041 — Preloader de marca
 
@@ -748,12 +802,34 @@ limpios):**
   tampoco mide nada.
 
 **Pendiente, no verificable desde acá — bloquea marcar "Hecho" de verdad:**
-1. **Configurar el Measurement ID real** de la propiedad GA4 en el entorno de build/deploy
-   (`VITE_GA_MEASUREMENT_ID`) — hoy sigue en placeholder.
-2. **Prueba manual del embudo completo con GA4 Realtime abierto**: visitar el sitio desplegado,
-   aceptar el aviso, clickear un CTA de cada tier, completar y enviar el formulario, confirmar que
-   `cta_click`, `booking_form_submit` y `whatsapp_open` aparecen en Realtime. Ninguna sesión de
-   este agente tiene acceso a una cuenta de GA4 ni a un navegador real para hacerlo.
+1. ~~Configurar el Measurement ID real~~ **Hecho (2026-08-25):** `VITE_GA_MEASUREMENT_ID=G-6PB25H4CCB`
+   confirmado cargado sin espacios en la consola de Amplify, coincide con el stream real de GA4
+   (`deotroplaneta.cl`, stream ID `15495729488`). El verificador de instalación de GA4 confirma
+   ("La etiqueta de Google ya está instalada en https://deotroplaneta.cl").
+2. **Prueba manual del embudo completo con GA4 Realtime abierto — intentada 2026-08-25, sin cerrar
+   todavía.** Sesión de auditoría con el usuario probando en vivo (Brave y Chrome incógnito), con
+   DevTools abierto:
+   - `dataLayer` en consola confirma que el código arma y encola los eventos correctamente:
+     `['config', 'G-6PB25H4CCB']`, `['event', 'cta_click', {...}]`, más los triggers internos de
+     Enhanced Measurement (`gtm.dom`, `gtm.load`, `gtm.scrollDepth`) que solo aparecen si `gtag.js`
+     ya está corriendo. Revisados también los 4 puntos de CTA (`Hero.tsx`, `Navbar.tsx`,
+     `ServiceCard.tsx`, `ServiciosDeck.tsx`) y `useBookingForm.ts` — sin defectos.
+   - `localStorage.getItem("als-cookie-consent")` devuelve `"granted"` tras aceptar el banner — el
+     gate de consentimiento funciona.
+   - Navegar a mano a `https://www.google-analytics.com/g/collect?v=2&tid=G-6PB25H4CCB` responde
+     `204` (éxito) — descarta un problema de DNS/red general.
+   - **Pese a todo lo anterior, ninguna request `/collect` sale desde el sitio real** (Network tab
+     filtrado por `collect`, con "Preserve log", vacío en ambos navegadores) — ni siquiera el
+     `page_view` automático. La discrepancia entre "la URL a mano funciona" y "el mismo hit disparado
+     por `gtag.js` en segundo plano no sale" apunta a software de seguridad en el equipo de prueba
+     (antivirus/protección web con anti-tracking, tipo Kaspersky/Avast/ESET/Malwarebytes) bloqueando
+     específicamente el tráfico de beacon en segundo plano, no la navegación directa — hipótesis
+     todavía sin confirmar, la sesión se cortó antes de identificar cuál software es.
+   - **Conclusión de esta ronda: el código está verificado como correcto de punta a punta. La duda
+     que queda es 100% de entorno de prueba, no de implementación** — pero como el criterio de
+     aceptación es literalmente "verse en Realtime", el ticket no puede cerrarse sin repetir la
+     prueba desde un dispositivo/red sin ese bloqueo (otro equipo, el celular con datos móviles, o
+     desactivando el módulo de protección web sospechoso).
 3. **Lighthouse completo** (mobile + desktop): este entorno no tiene Chrome instalado, así que solo
    se pudo medir el tamaño de bundle vía `npm run build` (JS inicial subió de 157.27 kB a 161.24 kB
    gzip — sigue en amarillo, no cruza a rojo; el detalle está en `quality-gates.md` §2). Falta
@@ -796,17 +872,83 @@ ampliado a `localhost:5173` para desarrollo); `lint`/`test` (47)/`build` limpios
 
 ### ALS-045 — Sección Video: catálogo de YouTube en vivo
 
-- Prioridad: P3 · Esfuerzo: M · Estado: Propuesto
-- Épica: G · Bloqueado por: ALS-027 (Lambda de YouTube desplegada)
+- Prioridad: P3 · Esfuerzo: M · **Estado: Hecho** (2026-08-25)
+- Épica: G
 
-Mismo propósito que ALS-044 (ya hecho — sección nueva, catálogo en vivo, separada de Portfolio),
-con la API de YouTube. Reutiliza el mismo patrón de skeleton/fallback (`useDiscografia` es la
-referencia directa) — no vale la pena inventar dos veces la misma solución de estado de carga.
+Mismo propósito que ALS-044 (Discografía) con la API de YouTube: sección nueva, catálogo en
+vivo, separada de Portfolio.
 
-**Alcance:** igual estructura que ALS-044 (Function URL propia o segundo handler de la misma
-Lambda, ver ALS-027), sección propia en `App.tsx` con su anchor, carga diferida.
+**Implementación:**
+- `Video.tsx` (nueva, después de Discografía en `App.tsx`) consume la Function URL de ALS-027
+  vía `useVideoCatalog` (`features/video/`) — mismo patrón exacto de `useDiscografia`
+  (ALS-026/044): fetch estándar, arranque en "error" sin variable de entorno configurada,
+  abort al desmontar.
+- `parseVideoCatalog` valida en runtime la forma de la respuesta (con test — ver
+  `src/test/video.test.ts`, espejo de `discografia.test.ts`): una respuesta con forma
+  inesperada cae al mismo fallback que un error de red.
+- Tres estados: skeleton (`VideoSkeleton`, mismo layout que `DiscografiaSkeleton` con
+  `aspect-video` en vez de `aspect-square`), grilla de videos reales, fallback con link a
+  YouTube si la Function URL falla, no está configurada, o el catálogo viene vacío.
+- `VITE_YOUTUBE_CATALOG_URL` nueva en `.env.example` — pública por diseño, no es un secreto.
+- Anchor propio `SECTION_IDS.VIDEO`, índice de dossier "05" — renumera Alcance/Proceso/
+  Testimonios/Faq/Contacto (06→10) para dejarle el hueco, mismo criterio que ALS-044 hizo con
+  Discografía.
 
-**No implementar antes de:** ALS-027 desplegado.
+**Verificado (1ª iteración):** catálogo real de ALIENSKILEZ (9 videos reales, verificado contra
+la Function URL directamente con `curl`, ver ALS-027); `lint`/`test` (53)/`build` limpios;
+`npm run dev` sirve `200`.
+
+**2ª iteración (2026-08-25, mismo día — pedido explícito del usuario tras ver la grilla
+estática: "carrusel pineado al scroll, para darle más efecto cinemático"):**
+- `VideoCarousel.tsx` — carrusel pineado nuevo, estructura de pin clonada de
+  `ServiciosDeck.tsx`/`Hero.tsx` (wrapper con alto medido + `sticky top-0`), pero con
+  travelling HORIZONTAL en vez de cascada apilada: la fila de cards se traduce en `x` con el
+  scroll vertical. El recorrido máximo se calcula midiendo (`useMeasuredWidthPx`, hook nuevo,
+  mismo patrón que `useMeasuredHeightPx`) tanto el ancho real de la fila como el de la ventana
+  del pin — no un valor fijo asumido.
+- Solo se monta en desktop sin `prefers-reduced-motion` (`MEDIA.DECK` +
+  `usePrefersReducedMotion`, mismo criterio que `Servicios.tsx`) y solo con catálogo ya
+  cargado — loading/error/mobile siguen usando la grilla estática de la 1ª iteración, sin
+  tocar esos estados.
+- De paso agrega `ScrollProgress.tsx` (ver ALS-040) — pedido junto con el carrusel, no un
+  ticket aparte trabajado de forma aislada.
+
+**Verificado (2ª iteración):** `lint`/`test` (53)/`build` limpios; `npm run dev` sirve `200`.
+
+**3ª iteración (2026-08-25, mismo día — referencia visual explícita del usuario, screenshot del
+showcase de lenis.darkroom.engineering):**
+- Cards del carrusel agrandadas (`VIDEO_CAROUSEL_CARD_WIDTH_PX` 420→480) y con efecto "foco":
+  la card centrada en la ventana del pin en cada instante se escala más grande que sus vecinas
+  (`CarouselCard`, `scale` derivado en vivo de la distancia entre su centro estático y el
+  centro del viewport — sin medir cada card, todas miden lo mismo).
+- Título/subtítulo se mueven AFUERA de la card (antes vivían en un recuadro con padding dentro,
+  como Discografía) — texto suelto debajo, título en blanco y subtítulo en tono apagado, mismo
+  look que la referencia.
+- **Radio de esquinas SIN cambiar** (`rounded-sm`, no el radio grande de la referencia) —
+  confirmado con el usuario antes de tocarlo: `design-system.md` §4 lo descarta a propósito
+  ("identidad instrumental técnica, no SaaS amigable").
+- Vista previa en hover: cada card reemplaza su miniatura estática por un iframe de YouTube en
+  loop silencioso de 10s reales (`start`/`end` sobre el `embedUrl` que ya trae el catálogo,
+  `loop=1&playlist={id}` — el truco documentado de YouTube para loopear un solo video). Pedido
+  explícito del usuario como alternativa a un GIF real — un GIF real requeriría descargar el
+  video (viola los Términos de Servicio de YouTube) y una Lambda de procesamiento de video que
+  ADR-11 descarta a propósito. Una sola instancia de preview viva a la vez, por construcción
+  (un solo `previewingId` en el carrusel, no un flag por card).
+
+**Verificado (3ª iteración):** `lint`/`test` (53)/`build` limpios.
+
+**4ª iteración (2026-08-25, mismo día — el usuario confirmó con captura que el carrusel ya
+funciona, pero pidió que las cards "sean más grandes y sobresalgan por los bordes"):**
+- El wrapper del carrusel pasa a full-bleed (`w-screen` + `left-1/2 -translate-x-1/2`, técnica
+  estándar para escapar del `max-w-6xl` + padding lateral de `Container` sin generar scroll
+  horizontal — `Section` ya tiene `overflow-clip`). Antes quedaba encerrado dentro del ancho de
+  contenido normal de la sección, por eso no sobresalía como en la referencia.
+- Cards de 480px → **640px** de ancho, gap 40→48px, `FOCUS_RANGE_PX` 520→700 (proporcional al
+  nuevo tamaño, para que el efecto de foco siga sintiéndose igual de gradual).
+
+**Verificado (4ª iteración):** `lint`/`test` (53)/`build` limpios.
+**Pendiente:** verificación visual de las cuatro iteraciones — no hay herramienta de navegador
+disponible en este entorno para capturarlo, queda para QA manual (ver `quality-gates.md`).
 
 ---
 
@@ -839,7 +981,7 @@ vista. Ver ADR-5.
 | ID      | Épica | Prio   | Esfuerzo | Estado                             | Bloqueado por                    |
 | ------- | ----- | ------ | -------- | ---------------------------------- | -------------------------------- |
 | ALS-001 | A     | P0     | S        | ✅ Hecho                           | —                                |
-| ALS-002 | A     | P2     | S        | Parcial — falta verificar YouTube  | —                                 |
+| ALS-002 | A     | P2     | S        | ✅ Hecho                           | —                                 |
 | ALS-003 | A     | P1     | M        | Pendiente                          | Productor                        |
 | ALS-004 | A     | P1     | S        | Pendiente                          | Productor                        |
 | ALS-005 | A     | P1     | S        | Pendiente                          | Artistas                         |
@@ -860,19 +1002,21 @@ vista. Ver ADR-5.
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
 | ALS-022 | F     | P0     | S        | En curso — AWS Amplify Hosting (ADR-16) | — |
-| ALS-023 | J     | **P1** | M        | Implementado, Measurement ID real cargado — falta verificación manual en GA4 Realtime tras el primer deploy exitoso a Amplify | — |
+| ALS-023 | J     | **P1** | M        | Código verificado sin defectos (2026-08-25) — Realtime en cero aún; causa acotada a bloqueo del equipo de prueba, no del sitio, falta reintentar desde otro dispositivo/red | — |
 | ALS-046 | F     | P2     | S        | Propuesto — revierte una ADR, no implementar sin ADR nueva | — |
+| ALS-047 | F     | P3     | M        | Propuesto                          | Acceso de solo-lectura a IAM (Productor) |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | ✅ Hecho                           | —                                 |
-| ALS-027 | G     | P2     | M        | Paso 0 hecho — handler escrito, no desplegado | Channel ID + API key de YouTube (Productor) |
+| ALS-027 | G     | P2     | M        | ✅ Hecho                           | —                                 |
 | ALS-028 | G     | P2     | L        | ✅ Hecho                           | Asset definitivo: ALS-006        |
 | ALS-029 | G     | P2     | S        | ✅ Hecho                           | —                                |
 | ALS-030 | A     | P2     | S        | Pendiente                          | Productor (cuenta Business)      |
 | ALS-031 | G     | P2     | M        | ✅ Hecho — manual, no IaC          | —                                 |
 | ALS-032 | G     | P2     | L        | ✅ Hecho                           | —                                |
 | ALS-044 | G     | P2     | M        | ✅ Hecho                           | —                                 |
-| ALS-045 | G     | P3     | M        | Propuesto                          | ALS-027 desplegado               |
+| ALS-045 | G     | P3     | M        | ✅ Hecho — 2ª iteración, carrusel pineado           | —                                 |
+| ALS-040 | I     | P3     | S        | Parcial — barra de progreso hecha, navegación por secciones no | — |
 | ALS-041 | I     | P3     | S        | ✅ Hecho — Lighthouse (ALS-019) todavía no corrido | — |
 | ALS-043 | I     | P2     | M        | ✅ Hecho — QA visual manual pendiente | —                |
 
@@ -887,7 +1031,6 @@ vista. Ver ADR-5.
 | ALS-037 | I | P2 | S | Fotos reales del estudio | ALS-006 (fotos) |
 | ALS-038 | I | P3 | M | Waveform reactivo en el Hero | — |
 | ALS-039 | I | P3 | M | Transición entre secciones | — |
-| ALS-040 | I | P3 | S | Indicador de progreso de scroll | — |
 | ALS-042 | I | P3 | S | Cursor personalizado | — |
 
 **Orden recomendado, si hay que elegir:**
@@ -902,7 +1045,8 @@ vista. Ver ADR-5.
 5. ~~**ALS-026** y **ALS-044**~~ — hechos (2026-08-25): Lambda desplegada y sección Discografía
    consumiéndola en vivo.
 6. **ALS-037** — en cuanto haya fotos.
-7. **ALS-045** — en cuanto ALS-027 (Lambda de YouTube) esté desplegada.
+7. ~~**ALS-027** y **ALS-045**~~ — hechos (2026-08-25): Lambda de YouTube desplegada y sección
+   Video consumiéndola en vivo, mismo día que se resolvió el bloqueo.
 8. Todo lo demás de la Épica I, al final y sin apuro.
 
 **Una advertencia sobre la Épica I:** son seis tickets de acabado visual y ninguno hace que alguien
@@ -910,9 +1054,8 @@ escriba que no iba a escribir. Es la parte del backlog más fácil de empezar y 
 Si el tiempo es escaso, ALS-037 (fotos reales) y nada más.
 
 **Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
-ALS-027 y ALS-045 (integración YouTube, pendiente) son alcance nuevo que **mejora** el sitio pero
-no impide publicarlo. ALS-023 (GA4) tampoco bloquea el lanzamiento, pero cuanto antes esté después
-de ALS-022, antes hay datos reales para decidir ALS-024 y ALS-041.
+ALS-023 (GA4) tampoco bloquea el lanzamiento, pero cuanto antes esté después de ALS-022, antes
+hay datos reales para decidir ALS-024 y ALS-041.
 
 ## 5. Gobernanza
 

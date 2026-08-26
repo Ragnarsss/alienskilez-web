@@ -40,7 +40,7 @@ export function Alcance() {
   return (
     <Section
       id={SECTION_IDS.ALCANCE}
-      index="05"
+      index="06"
       kicker="ALCANCE"
       tone="surface-alt"
       geometry="hex"

@@ -5,6 +5,7 @@ export const SECTION_IDS = {
   SERVICIOS: "servicios",
   PORTFOLIO: "portfolio",
   DISCOGRAFIA: "discografia",
+  VIDEO: "video",
   ALCANCE: "alcance",
   PROCESO: "proceso",
   TESTIMONIOS: "testimonios",

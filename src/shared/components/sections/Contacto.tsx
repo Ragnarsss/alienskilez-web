@@ -36,7 +36,7 @@ export function Contacto() {
       <Container>
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <div>
-            <Kicker index="09" label="CONTACTO" className="mb-4" />
+            <Kicker index="10" label="CONTACTO" className="mb-4" />
             <h2 className="text-3xl leading-[1.1] font-semibold tracking-tight sm:text-4xl md:text-5xl">
               Tu próxima sesión empieza con <span className="text-accent">un solo mensaje</span>.
             </h2>
