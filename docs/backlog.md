@@ -559,6 +559,42 @@ sin eso, el punto 1 y 4 no se pueden verificar, solo declarar como pendiente.
 
 ---
 
+### ALS-062 — Sitemap, robots y canonical *(2026-11-26)*
+
+- Prioridad: P1 · Esfuerzo: S · **Estado: Hecho** (2026-11-26) — Search Console pendiente de enviar por el Productor
+- Épica: F
+
+**Por qué aparece:** al enviar el sitio a Google Search Console se vio que producción devolvía `404`
+(con el HTML del SPA) para `/robots.txt` y `/sitemap.xml`. El `robots.txt` que ALS-019 dio por
+agregado nunca se había commiteado. Además `deotroplaneta.cl` y `www.deotroplaneta.cl` respondían
+los dos `200`, sin `canonical`: contenido duplicado.
+
+**Decisiones (con el Productor):** dominio canónico = apex `https://deotroplaneta.cl/` (el que ya
+usan CORS y GA4); solo español, sin `hreflang`; sitemap **estático** en `public/` con `loc` +
+`lastmod` (Google ignora `changefreq`/`priority`); `lastmod` a mano, solo cuando cambia contenido
+visible de la página.
+
+**Implementación:**
+- `public/sitemap.xml` (una URL), `public/robots.txt` con la línea `Sitemap:`.
+- `index.html`: `<link rel="canonical">` y `og:url` al apex.
+- `src/test/seo.test.ts`: falla si sitemap, robots y canonical se desalinean del mismo origen.
+- Regla en la consola de Amplify (no vive en el repo): `https://www.deotroplaneta.cl/<*>` →
+  `https://deotroplaneta.cl/<*>`, 301, **antes** del fallback `404-200`.
+
+**Verificado en producción (2026-11-26):** `/sitemap.xml` → `200`, `text/xml`, XML válido;
+`/robots.txt` → `200`, lista el sitemap; la home trae `canonical` y `og:url` al apex;
+`www.deotroplaneta.cl/<ruta>` → `301` a `deotroplaneta.cl/<ruta>`.
+
+**Incidente al activar el 301:** la regla estaba guardada y bien ordenada pero `www` seguía
+respondiendo `200`. Se aplicó recién tras un *Redeploy this version* de Amplify (invalida la
+caché de CloudFront). Además, Amplify ignora el query string en la clave de caché, así que probar
+con `?t=1` **no** sirve para esquivarla — se prueba por `Last-Modified`/`Age`.
+
+**Pendiente (acción manual, no es código):** enviar `sitemap.xml` en Search Console sobre la
+propiedad del apex y pedir inspección de `https://deotroplaneta.cl/`.
+
+---
+
 ---
 
 ## Épica H — Prueba de calidad (funcional)
@@ -1005,6 +1041,7 @@ vista. Ver ADR-5.
 | ALS-023 | J     | **P1** | M        | Código verificado sin defectos (2026-08-25) — Realtime en cero aún; causa acotada a bloqueo del equipo de prueba, no del sitio, falta reintentar desde otro dispositivo/red | — |
 | ALS-046 | F     | P2     | S        | Propuesto — revierte una ADR, no implementar sin ADR nueva | — |
 | ALS-047 | F     | P3     | M        | Propuesto                          | Acceso de solo-lectura a IAM (Productor) |
+| ALS-062 | F     | P1     | S        | ✅ Hecho                           | —                                |
 | ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | ✅ Hecho                           | —                                 |
