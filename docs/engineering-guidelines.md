@@ -62,6 +62,15 @@ Si aparece cualquiera de estos, hay lógica nueva y necesita test antes que impl
 Verificación rápida: **si un archivo `.tsx` contiene la palabra `wa.me`, `zodResolver`, o una
 expresión regular de validación, está mal ubicado.**
 
+**El mismo principio en el backend de la tienda (ADR-17, cuando exista):** un handler de Express
+solo traduce HTTP ↔ dominio. Reserva, cálculo del total, transiciones de estado del beat y
+procesamiento del webhook viven en módulos puros con tests, sin importar Express ni el SDK de AWS.
+El dominio accede a los datos solo a través de `beatsRepo`/`pedidosRepo`/`archivos` (adaptador AWS y
+adaptador en memoria para tests). El frontend solo conoce URLs de la API: nunca hosts de S3, keys ni
+nombres de tablas (`tienda-beats.md` §2.1).
+El precio cobrado **siempre** lo calcula el servidor, y solo el webhook (tras consultar el pago a la
+pasarela) confirma una venta.
+
 ### Regla de honestidad (contra la sobre-ingeniería)
 
 No se crea una capa nueva hasta que exista una duplicación o complejidad **ya observada dos

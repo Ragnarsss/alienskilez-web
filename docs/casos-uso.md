@@ -511,3 +511,4 @@ flowchart LR
 - [`historias-usuario.md`](./historias-usuario.md) — historias que agrupan estos casos de uso.
 - [`rf-rnf-catalogo.md`](./rf-rnf-catalogo.md) — requisitos formales vinculados.
 - [`architecture.md`](./architecture.md) §5 — diagrama de secuencia del flujo de agendamiento.
+- [`casos-uso-tienda.md`](./casos-uso-tienda.md) — casos de uso de la tienda de beats (ADR-17).

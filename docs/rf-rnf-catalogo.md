@@ -80,6 +80,63 @@ sin intermediarios. Para el objetivo del sitio, tiene más peso que cualquier re
 fricción justo antes del CTA. La restricción es deliberada: si la única forma de medir es
 degradando la experiencia, no se mide.
 
+### 2.3 Tienda de beats exclusivos — requisitos funcionales propuestos (ADR-17)
+
+Alcance nuevo, **no implementado**. Solo se venden exclusivas: cada beat se vende una vez. Flujos en
+[`tienda-beats.md`](./tienda-beats.md) §4 (columna "Flujo").
+
+Módulos nuevos: **CAT** catálogo · **CAR** carrito · **PAG** pago · **ENT** entrega ·
+**ADM** administración.
+
+| ID | Mód. | Requisito funcional | Prioridad | Criterio de verificación | Flujo | Estado |
+|---|---|---|---|---|---|---|
+| RF-CAT-001 | CAT | La tienda debe vivir en una página separada de la landing, enlazada desde el navbar. | **Alta** | La landing no descarga ningún JS del catálogo (bundle aparte). | 4.1 | Propuesto |
+| RF-CAT-002 | CAT | El catálogo debe listar los beats disponibles con portada, título, BPM, tonalidad, género y precio en CLP. | **Alta** | Solo aparecen beats `disponible` o `reservado`; nunca `borrador`. | 4.1 | Propuesto |
+| RF-CAT-003 | CAT | Cada beat debe tener una preview con tag de voz, servida por la API desde el bucket privado; solo una suena a la vez. | **Alta** | `preload="none"`; dar play a una pausa la anterior; adelantar funciona (`206` con `Content-Range`); la preview de un beat vendido o en borrador devuelve 404. | 4.1 | Propuesto |
+| RF-CAT-004 | CAT | El catálogo debe poder filtrarse por género, BPM y tonalidad. | Media | El filtrado no hace peticiones de red. | 4.1 | Propuesto |
+| RF-CAT-005 | CAT | Un beat vendido no debe poder comprarse. *[Ocultarlo o mostrarlo como "Vendido": decide el Productor.]* | **Alta** | Un beat `vendido` no tiene botón de agregar. | 4.1 | Propuesto |
+| RF-CAT-006 | CAT | Un beat reservado por otro comprador debe mostrarse como no disponible por ahora. | Media | Botón deshabilitado y estado anunciado a lectores de pantalla. | 4.1 | Propuesto |
+| RF-CAR-001 | CAR | El carrito debe admitir cada beat una sola vez, sin cantidades. | **Alta** | Agregar dos veces el mismo beat no lo duplica. | 4.2 | Propuesto |
+| RF-CAR-002 | CAR | El carrito debe sobrevivir a una recarga de página. | Media | Persistido en `localStorage`, leído con `useSyncExternalStore`. | 4.2 | Propuesto |
+| RF-CAR-003 | CAR | Antes de pagar, el carrito debe validarse contra el backend y quitar lo que ya no esté disponible. | **Alta** | Un beat vendido mientras estaba en el carrito se quita con aviso. | 4.2 | Propuesto |
+| RF-CAR-004 | CAR | El total cobrado debe calcularlo el backend, nunca el frontend. | **Alta** | Alterar el precio en devtools no cambia el monto enviado a la pasarela. | 4.2, 4.3 | Propuesto |
+| RF-PAG-001 | PAG | El checkout debe pedir solo nombre, email y aceptación de términos, sin crear cuenta. | **Alta** | Validación zod en cliente **y** servidor. | 4.3 | Propuesto |
+| RF-PAG-002 | PAG | Al iniciar el pago, todos los beats del carrito deben reservarse de forma atómica: todos o ninguno. | **Alta** | Dos checkouts simultáneos del mismo beat: uno reserva, el otro recibe 409. | 4.3 | Propuesto |
+| RF-PAG-003 | PAG | La reserva debe vencer sola si el pago no se confirma. *[Duración propuesta: 15 min.]* | **Alta** | Pasado el plazo, el beat se puede reservar de nuevo sin intervención. | 4.6 | Propuesto |
+| RF-PAG-004 | PAG | El pago debe crearse en la pasarela con URL de webhook, URL de retorno y vencimiento igual al de la reserva. | **Alta** | Inspección de la petición de creación del pago. | 4.3 | Propuesto |
+| RF-PAG-005 | PAG | Solo el webhook, tras consultar el pago a la API de la pasarela, puede confirmar una venta. | **Alta** | Un `POST` falso al webhook o un `/gracias` escrito a mano no marcan nada como vendido. | 4.4 | Propuesto |
+| RF-PAG-006 | PAG | El procesamiento del webhook debe ser idempotente. | **Alta** | El mismo aviso dos veces genera una sola entrega y un solo correo. | 4.4 | Propuesto |
+| RF-PAG-007 | PAG | La página de retorno debe mostrar el estado real del pedido: pendiente, pagado o rechazado. | **Alta** | Funciona con el webhook antes o después de la redirección. | 4.5 | Propuesto |
+| RF-PAG-008 | PAG | Un pago rechazado debe liberar la reserva y dejar el carrito intacto. | Media | — | 4.6 | Propuesto |
+| RF-PAG-009 | PAG | Un pago confirmado tras perder la reserva debe marcarse para reembolso y avisar al Productor, nunca vender el beat dos veces. | **Alta** | Test de dominio del caso "reserva vencida y beat ya vendido". | 4.4 | Propuesto |
+| RF-ENT-001 | ENT | Al confirmarse el pago, el comprador debe recibir un correo con enlaces de descarga y el contrato. | **Alta** | Llega aunque el comprador haya cerrado la pestaña. | 4.4 | Propuesto |
+| RF-ENT-002 | ENT | Los enlaces de descarga del correo deben apuntar a la API (token opaco), ser temporales y poder regenerarse. | **Alta** | Un token vencido o reemplazado muestra "enlace vencido"; el reenvío genera uno nuevo; el correo no contiene ninguna URL de S3. | 4.4, 4.10, 4.11 | Propuesto |
+| RF-ENT-003 | ENT | Cada pedido debe generar un contrato de exclusividad en PDF con comprador, beats, fecha y monto. *[Plantilla legal pendiente del Productor.]* | **Alta** | — | 4.4 | Propuesto |
+| RF-ENT-004 | ENT | El Productor debe recibir un aviso por cada venta. *[Canal a definir.]* | Media | — | 4.4 | Propuesto |
+| RF-ADM-001 | ADM | El panel debe requerir inicio de sesión con Google, restringido a una lista de emails autorizados. | **Alta** | Una cuenta de Google no autorizada recibe 403. | 4.7 | Propuesto |
+| RF-ADM-002 | ADM | El Productor debe poder crear y editar beats: metadatos, precio, portada, preview y entregables. | **Alta** | — | 4.8 | Propuesto |
+| RF-ADM-003 | ADM | Los archivos deben subirse a un destino opaco que entrega la API, y la API debe confirmar cada subida antes de asociarla al beat. | **Alta** | Un ZIP de stems de cientos de MB se sube bien; el panel no construye ni interpreta URLs de storage. | 4.8 | Propuesto |
+| RF-ADM-004 | ADM | Un beat solo puede publicarse si tiene precio, preview y entregables; los borradores no son públicos. La preview no puede superar el tamaño máximo que admite la respuesta de Lambda. | **Alta** | Publicar uno incompleto o con una preview demasiado pesada devuelve error con el motivo. | 4.8 | Propuesto |
+| RF-ADM-005 | ADM | El Productor debe poder marcar un beat como vendido por fuera del sitio. | **Alta** | Desaparece del catálogo; si hay un pago en curso, devuelve 409. | 4.9 | Propuesto |
+| RF-ADM-006 | ADM | El panel debe listar pedidos con estado, comprador y monto, y permitir reenviar la descarga. | Media | — | 4.10 | Propuesto |
+| RF-ADM-007 | ADM | Un beat con pedido pagado no puede borrarse, solo archivarse. | Media | — | — | Propuesto |
+
+### 2.4 Tienda de beats — requisitos no funcionales propuestos (ADR-17)
+
+| ID | Cat. | Requisito no funcional | Métrica | Umbral | Verificación | Estado |
+|---|---|---|---|---|---|---|
+| RNF-SEG-003 | SEG | Los secretos de la tienda (pasarela, Google, firma de sesión) viven en Secrets Manager, nunca en el repo ni en el bundle. | Secretos en repo o bundle | 0 | `grep` del bundle y del repo. | Propuesto |
+| RNF-SEG-004 | SEG | La sesión del panel viaja en cookie `httpOnly`, `Secure`, `SameSite`; nunca un token en `localStorage`. | Tokens accesibles desde JS | 0 | Devtools → Application. | Propuesto |
+| RNF-SEG-005 | SEG | La capa de datos está abstraída detrás de la API: un solo bucket privado, y el frontend y los correos solo conocen URLs de la API (`tienda-beats.md` §2.1). | Hosts de S3, keys o nombres de tablas en el bundle o en un correo; objetos accesibles sin firma | 0 | `grep` del bundle; `GET` directo a cualquier key devuelve 403. | Propuesto |
+| RNF-SEG-006 | SEG | CORS de la API restringido al dominio del sitio. | Orígenes permitidos | Solo producción | Petición desde otro origen rechazada. | Propuesto |
+| RNF-SEG-007 | SEG | Límite de peticiones por IP en checkout, para que nadie bloquee el catálogo reservando en masa. | Reservas por IP | *[a definir]* | Prueba de carga simple. | Propuesto |
+| RNF-INT-003 | INT | Un beat nunca se vende dos veces. | Beats con más de un pedido pagado | 0 | Test de concurrencia sobre la reserva y el webhook. | Propuesto |
+| RNF-INT-004 | INT | Precios y metadatos reales, cargados por el Productor (ADR-6). | Datos inventados | 0 | Revisión antes del lanzamiento. | Propuesto |
+| RNF-LEG-001 | LEG | Política de privacidad (Ley 21.719) y términos de venta con derecho a retracto explicado (Ley 19.496). | Documentos publicados y revisados | 2 | Revisión legal. | Propuesto |
+| RNF-LEG-002 | LEG | Cada venta emite boleta electrónica. | Ventas sin boleta | 0 | A definir con un contador: manual o integrada. | Propuesto |
+| RNF-RND-003 | RND | La tienda no empeora la landing. | Bundle y Lighthouse de la landing | Sin cambio vs. línea base | `quality-gates.md` §2 antes y después. | Propuesto |
+| RNF-MNT-004 | MNT | La lógica de dominio del backend está separada de Express y cubierta por tests. | Reglas de negocio dentro de handlers | 0 | Revisión de código + `npm test`. | Propuesto |
+
 ## 3. Catálogo de Requisitos No Funcionales
 
 Categorías: **RND** rendimiento · **ACC** accesibilidad · **MNT** mantenibilidad ·
@@ -93,7 +150,7 @@ Categorías: **RND** rendimiento · **ACC** accesibilidad · **MNT** mantenibili
 | RNF-MNT-001 | MNT | Ningún dato de negocio, anchor o límite puede estar escrito fuera de `shared/constants/`. | Literales de dominio dispersos | 0 | Revisión de código; ningún `href="#"` literal ni número de WhatsApp fuera de su constante (CP-MNT-001). | Todos | Verificado |
 | RNF-MNT-002 | MNT | El proyecto debe compilar con TypeScript estricto y pasar lint sin excepciones ni supresiones. | Errores de `tsc -b` y de ESLint; `@ts-ignore`/`eslint-disable` | 0 y 0 | `npm run lint && npm run build` (CP-MNT-002). | Todos | Verificado |
 | RNF-MNT-003 | MNT | La lógica que puede fallar debe estar cubierta por tests y aislada de React. | Tests verdes sobre schema y builder | 100% de esa superficie | `npm test` — 24/24 (CP-MNT-003). | RF-BKG-002, RF-BKG-003 | Verificado |
-| RNF-DEP-001 | DEP | El sitio debe ser 100% estático, desplegable en cualquier CDN sin servidor propio ni base de datos. | Servicios de backend requeridos | 0 | `npm run build` produce solo `dist/` con HTML, CSS, JS y SVG (CP-DEP-001). | Todos | Verificado |
+| RNF-DEP-001 | DEP | El sitio debe ser 100% estático, desplegable en cualquier CDN sin servidor propio ni base de datos. | Servicios de backend requeridos | 0 | `npm run build` produce solo `dist/` con HTML, CSS, JS y SVG (CP-DEP-001). | Todos | Verificado — **desde ADR-17 aplica solo a la landing**; la tienda de beats (§2.3) tiene backend. |
 | RNF-INT-001 | INT | El sitio nunca debe publicar datos de negocio inventados (cifras, testimonios, créditos, precios). | Datos ficticios publicados | 0 | Revisión de las constantes con `pending: true`; checklist final de `quality-gates.md` §7 (CP-INT-001). | RF-SRV-003, RF-POR-001, RF-TRA-002 | Verificado |
 | RNF-INT-002 | INT | Ningún dato pendiente puede romper la interfaz: la ausencia debe degradar la presentación, no fallar. | Iframes con `src` vacío; enlaces con `href` vacío | 0 | Inspección del DOM con todas las constantes en `pending` (CP-INT-002). | RF-POR-001, RF-TRA-002 | Verificado |
 | RNF-CMP-001 | CMP | El sitio debe ser usable entre 320px y 1440px sin scroll horizontal ni solapamientos. | Anchos verificados | 320, 375, 768, 1024, 1440 | Checklist de `quality-gates.md` §3 (CP-CMP-001). | Todos | **Implementado** — construido responsive; barrido manual de anchos pendiente. |

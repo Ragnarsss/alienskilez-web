@@ -31,7 +31,11 @@ Motion. Sin backend, sin base de datos, sin router.
 ### Ingeniería
 
 5. [**Arquitectura**](./architecture.md) — stack, mapa de módulos, modelo de contenido, el flujo
-   de agendamiento y **16 ADR** con las decisiones cerradas y su porqué.
+   de agendamiento y **17 ADR** con las decisiones cerradas y su porqué.
+5b. [Tienda de beats](./tienda-beats.md) — *propuesta (ADR-17)*: piezas, modelo de datos y
+   diagramas de secuencia de cada proceso de la tienda de beats exclusivos.
+5c. [Casos de uso de la tienda](./casos-uso-tienda.md) — *propuestos*: una ficha `CU-XXX-NNN` por
+   cada diagrama de secuencia de la tienda.
 6. [**Guía de ingeniería**](./engineering-guidelines.md) — TDD acotado, SoC, KISS, DRY, SOLID,
    constantes y *magic strings*, reglas del React Compiler, Definition of Done y convención de
    commits.

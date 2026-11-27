@@ -149,6 +149,8 @@ cualquier CDN.
 **Consecuencia aceptada:** no hay registro propio de leads; el historial vive en WhatsApp
 Business. Si en algún momento hace falta analítica de conversión real, esto se reevalúa — no
 antes.
+**Nota (2026-11-26):** sigue vigente para la landing y el embudo de agendamiento. La tienda de beats
+exclusivos sí tiene backend propio, en una página aparte — ver ADR-17.
 
 ### ADR-2 — Primitivos de UI propios, sin librería de componentes
 
@@ -557,6 +559,64 @@ de verdad — el detalle completo (comandos, valores, orden) queda documentado a
 en el historial de chat, para que si esto se repite con otro dominio (o alguien más lo hace en el
 futuro) no haga falta re-descubrir los cuatro pasos desde cero.
 
+### ADR-17 — Tienda de beats exclusivos con backend propio (Express en Lambda + DynamoDB), separada de la landing (2026-11-26) — *Propuesto*
+
+**Contexto:** el Productor quiere vender beats desde el sitio. Esto choca con tres decisiones
+vigentes: `requirements.md` §4 dejaba "catálogo de beats o tienda" fuera de alcance, RNF-DEP-001
+exige un sitio 100% estático y ADR-1 descarta backend propio. Además, el Productor definió que **solo
+vende exclusivas**: cada beat se vende una vez. Eso convierte el catálogo en inventario con stock 1,
+con estado (disponible, reservado, vendido) que tiene que vivir en un solo lugar y resistir dos
+compradores simultáneos. No hay versión estática de eso.
+**Decisión:**
+- La landing **no cambia de objetivo** (ADR-1 sigue vigente para ella). La tienda vive en
+  `catalogo.html` y el panel en `admin.html`, como entradas separadas de Vite. Sin router.
+- Backend en **Express sobre AWS Lambda** (`serverless-http`) con Function URL, en la misma cuenta de
+  ADR-11/ADR-16. Persistencia en **DynamoDB** (`beats`, `pedidos`). Archivos en **un solo bucket S3
+  privado** (portadas, previews con tag, WAV, stems).
+- **La capa de datos está abstraída detrás de la API:** el frontend (y los enlaces de los correos)
+  solo conoce URLs de la API; nunca hosts de S3, keys ni nombres de tablas. Portadas y previews las
+  sirve Express leyendo de S3. Los archivos grandes, que no caben en Lambda (request de 6 MB,
+  respuesta de 6 a 20 MB), los autoriza la API y los entrega como destino opaco de vida corta: un
+  `302` para descargar y un destino de subida para el panel. En el backend, el dominio depende de los
+  módulos `beatsRepo`/`pedidosRepo`/`archivos`, no del SDK de AWS. Detalle en `tienda-beats.md` §2.1.
+- **La venta la confirma el webhook de la pasarela**, tras consultar el pago a su API. La redirección
+  del navegador nunca cambia estado.
+- **Reserva atómica** de todos los beats del carrito al iniciar el pago (`TransactWriteItems`
+  condicional), con vencimiento perezoso por `reservadoHasta` — sin cron.
+- Panel con **Google Sign-In verificado en el servidor** contra una lista de emails autorizados y
+  cookie de sesión `httpOnly` propia.
+- Diseño completo, modelo de datos y diagramas de secuencia en [`tienda-beats.md`](./tienda-beats.md).
+**Por qué:**
+- Lambda en vez de un servidor encendido: al volumen de una tienda de exclusivas, un contenedor 24/7
+  cuesta sin necesidad. Express se mantiene como framework, así que migrar a contenedor después es
+  trivial.
+- DynamoDB: el modelo son dos entidades, y las escrituras condicionales resuelven la reserva sin
+  transacciones SQL ni una base de datos que administrar.
+- Webhook en vez de redirección: la redirección la controla el navegador del comprador (falsificable
+  y puede no llegar); el webhook es servidor a servidor y la pasarela lo reintenta.
+- Google verificado a mano en vez de Cognito: para un solo usuario, Cognito es configuración de más
+  para el mismo resultado.
+**Alternativa(s) descartada(s):**
+- *Plataforma de beats (BeatStars/Airbit) enlazada:* pensada para licencias no exclusivas, UI y marca
+  ajenas, cobro en USD poco amigable para el comprador chileno.
+- *Catálogo estático + WhatsApp + link de pago manual:* coherente con ADR-1, pero sin estado
+  compartido el riesgo de vender dos veces el mismo beat exclusivo recae entero en la memoria del
+  Productor.
+- *Express en EC2/App Runner/Lightsail:* costo fijo mensual sin tráfico que lo justifique. Sería la
+  única forma de que ni un byte vaya directo al storage; el contrato de la API no cambiaría si algún
+  día se migra.
+- *Transbank directo:* Webpay Plus no tiene webhook (exige `commit` desde el retorno del navegador);
+  Flow o Mercado Pago sí lo tienen y además cubren Webpay.
+**Consecuencia:**
+- RNF-DEP-001 pasa a aplicar solo a la landing. `requirements.md` §4 deja de listar la tienda como
+  fuera de alcance.
+- Primera vez que el sistema guarda **datos personales** (nombre y email del comprador): aplican la
+  Ley 21.719 (política de privacidad) y la Ley 19.496 (términos, retracto). Boleta electrónica por
+  venta.
+- Toda regla de negocio del backend (reserva, total, transición de estados, webhook) vive en módulos
+  puros testeados, nunca en un handler de Express. El precio siempre lo calcula el servidor.
+- Requisitos en `rf-rnf-catalogo.md` §2.3 y §2.4; tickets en la Épica K de `backlog.md`.
+
 ## 7. Deuda conocida y diferida a propósito
 
 Documentado como decisión, no como olvido:
@@ -578,3 +638,5 @@ Documentado como decisión, no como olvido:
 - [`quality-gates.md`](./quality-gates.md) — umbrales y checklists previos a desplegar.
 - [`rf-rnf-catalogo.md`](./rf-rnf-catalogo.md) — requisitos formales que este diseño satisface.
 - [`backlog.md`](./backlog.md) — qué está hecho y qué falta.
+- [`tienda-beats.md`](./tienda-beats.md) — tienda de beats exclusivos (ADR-17): modelo de datos y
+  diagramas de secuencia de cada proceso.

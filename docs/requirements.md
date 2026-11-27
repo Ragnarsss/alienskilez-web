@@ -70,6 +70,15 @@ Al enviar, se abre WhatsApp con un mensaje ya redactado que identifica al solici
 pide. **El mensaje no se envía solo**: el visitante lo revisa y decide. No hay backend que reciba
 nada.
 
+### RF-11 — Tienda de beats exclusivos (nuevo, sumado 2026-11-26, *propuesto*)
+En una página **aparte de la landing**, el Productor vende beats **solo en exclusiva**: cada beat se
+vende una vez y sale del catálogo. El comprador escucha previews con tag, arma un carrito, paga con
+una pasarela chilena sin crear cuenta y recibe por correo los archivos y el contrato. El Productor
+administra beats y pedidos desde un panel con inicio de sesión de Google. La landing no cambia:
+sigue existiendo para agendar por WhatsApp. Decisión en ADR-17, diseño en
+[`tienda-beats.md`](./tienda-beats.md), requisitos formales en
+[`rf-rnf-catalogo.md`](./rf-rnf-catalogo.md) §2.3.
+
 ## 3. Requisitos no funcionales
 
 ### RNF-01 — Rendimiento
@@ -91,7 +100,8 @@ supresiones. La lógica que puede fallar está aislada de React y cubierta por t
 
 ### RNF-05 — Despliegue sin infraestructura
 Sitio 100% estático. Sin servidor propio, sin base de datos, sin variables de entorno secretas.
-Se despliega en cualquier CDN con `npm run build`.
+Se despliega en cualquier CDN con `npm run build`. **Desde ADR-17 aplica a la landing**, no a la
+tienda de beats (RF-11), que sí tiene backend.
 
 ### RNF-06 — Integridad del contenido
 Ningún dato de negocio inventado, nunca. Y ningún dato pendiente puede romper la interfaz: la
@@ -107,7 +117,8 @@ Usable entre 320px y 1440px sin scroll horizontal ni solapamientos.
   constantes.
 - **Analítica de conversión.** Se agrega cuando haya tráfico real que medir.
 - **Internacionalización.** Un solo idioma: español. El negocio es local.
-- **Blog, catálogo de beats o tienda.** No están en el embudo de agendamiento.
+- **Blog.** No está en el embudo de agendamiento. *(La tienda de beats salió de esta lista el
+  2026-11-26: ahora es RF-11, en una página aparte — ADR-17.)*
 - **Pipeline de CI bloqueante.** Las puertas de calidad se corren a mano antes de desplegar.
 
 Ver [`architecture.md`](./architecture.md) §7 para la justificación de cada diferimiento.
