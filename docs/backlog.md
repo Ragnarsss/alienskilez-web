@@ -225,9 +225,19 @@ de lenis.darkroom.engineering):** logo centrado, links flanqueando a los costado
 repetir "Contacto" como link de texto — el CTA de la derecha ya apunta ahí), tipografía de los
 links a `font-mono uppercase tracking-[0.18em]` (mismo lenguaje que `.kicker`, no el sans bold
 genérico de la referencia — consistente con la identidad "instrumental técnica" del proyecto).
-Un solo `<nav>`/un solo juego de links en el DOM: mobile sigue siendo el flex de siempre (logo +
-hamburguesa), desktop pasa a grid de 3 columnas con `md:order-*` reordenando visualmente sin
-duplicar markup. Menú móvil sin cambios (sigue con los 5 links completos + CTA).
+Un solo `<nav>`, un solo juego de links en el DOM: mobile sigue siendo el flex de siempre (logo +
+hamburguesa), desktop pasa a grid de 3 columnas. Menú móvil sin cambios (sigue con los 5 links
+completos + CTA).
+
+**Corrección de accesibilidad (2026-08-25, auditoría con la skill `accesibilidad-audit`):** la
+primera versión reordenaba visualmente con `md:order-*` (logo primero en el DOM, `order-2` para
+centrarlo) — `order` de CSS cambia el orden VISUAL pero no el de tabulación con teclado, que
+sigue el DOM. Con teclado, `Tab` saltaba centro → izquierda → derecha, no lineal. Corregido
+reordenando el DOM mismo (izquierda → logo → derecha) en vez de usar `order` — ya no hace falta
+ninguno de los dos.
+
+**Pendiente de verificar con navegador real:** el grid de 3 columnas entre 768–900px (sin
+`flex-wrap`, podría apretarse justo arriba del breakpoint `md`) — ver `quality-gates.md` §3.
 
 ### ALS-015 — Secciones informativas y de prueba social
 
@@ -418,28 +428,52 @@ ayuda a aparecer en búsquedas del tipo "productor musical La Serena".
 
 ### ALS-018 — Sin feedback si el navegador bloquea la pestaña emergente
 
-- Prioridad: **P1** · Esfuerzo: S · Estado: Pendiente
+- Prioridad: **P1** · Esfuerzo: S · **Estado: Hecho** (2026-08-26)
 - RF-BKG-007 · CU-BKG-002 (E2)
 
 `window.open` puede ser bloqueado por el navegador. Hoy el visitante completa el formulario, hace
 clic y **no pasa nada visible** — cree que envió algo cuando no envió nada. Es el único punto del
 embudo donde una falla es invisible y total, y de ahí la prioridad.
 
-Solución propuesta: comprobar el valor de retorno de `window.open`; si es `null`, mostrar el enlace
-`wa.me` como fallback clicable en vez de fallar en silencio.
+**Implementación:** la detección de `window.open() === null` ya existía (medía el evento
+`WHATSAPP_BLOCKED`, ver ALS-023) pero no exponía nada al componente — faltaba justo el criterio
+de aceptación. `useBookingForm` ahora guarda la URL de WhatsApp ya armada en
+`blockedWhatsAppUrl` cuando el popup falla; `Contacto.tsx` la renderiza como un `<a>` real
+(`role="alert"` para que un lector de pantalla lo anuncie) — un clic directo sobre un link es
+gesto de usuario, no lo bloquea el navegador aunque el `window.open` programático sí haya fallado.
 
-**Criterios:** con las emergentes bloqueadas, aparece un enlace visible que abre el mismo chat.
+**Criterios (verificados):** con las emergentes bloqueadas, aparece un enlace visible que abre el
+mismo chat con el mismo mensaje. `lint`/`test` (59)/`build` limpios. Sin test de hook nuevo — el
+proyecto no tiene React Testing Library instalada y esto es un solo hook de glue sobre lógica ya
+testeada (`buildWhatsAppMessage`); no se agrega una dependencia nueva para un caso aislado (ver
+"regla de honestidad", `engineering-guidelines.md` §2).
 
 ### ALS-019 — Verificación de rendimiento y accesibilidad
 
-- Prioridad: **P1** · Esfuerzo: S · Estado: Pendiente
+- Prioridad: **P1** · Esfuerzo: S · **Estado: Auditoría corrida (2026-08-26) — Performance NO
+  pasa el umbral**
 
-Los tamaños de bundle están medidos (139.20 kB gzip de JS) pero **Lighthouse no se corrió todavía**,
-y el sitio no se recorrió con lector de pantalla. Ambas cosas están declaradas como no verificadas
-en [`rf-rnf-catalogo.md`](./rf-rnf-catalogo.md) §5 en vez de darse por buenas.
+Primer Lighthouse real de este proyecto, contra `npm run build && npm run preview` (Chrome
+headless). Resultado completo en `quality-gates.md` §2.
 
-**Criterios:** Lighthouse mobile con Performance ≥ 90 y Accessibility ≥ 95; checklist manual de
-[`quality-gates.md`](./quality-gates.md) §5 completo.
+**Accessibility 100, SEO 100** (ambos subieron desde 97/91 — dos hallazgos reales corregidos en
+el camino: `aria-label` prohibido en un `<p>` del Hero, y `public/robots.txt` que no existía).
+
+**Performance 30-34 mobile / 55 desktop — no pasa el criterio de ≥90.** Causa identificada con
+datos reales (`bootup-time`, no una suposición): el chunk 3D de Three.js (320 kB gzip) se carga
+casi de inmediato porque `HeroMark3D` se monta sin condición en el Hero — contradice lo que
+`quality-gates.md` daba por sentado antes de medir ("no bloquea el primer render"). LCP mobile
+5.2s (umbral 2.5s) lo confirma.
+
+**Este ticket cumplió su propósito** (dejar de tener cero datos reales, ver `rf-rnf-catalogo.md`
+§5) pero el criterio de aceptación original (Performance ≥90) no se cumple — no se cierra como
+"Hecho" para no repetir el patrón de declarar pasado lo que no pasó. Dispara ALS-024, que ya no
+tiene excusa de "sin datos" para seguir diferido.
+
+**Checklist manual de `quality-gates.md` §5:** no recorrido completo todavía (navegación por
+teclado real, zoom 200%, lector de pantalla) — la auditoría de hoy fue automatizada
+(Lighthouse) + revisión estática de código (skill `accesibilidad-audit`), no el checklist manual
+entero con navegador real.
 
 ### ALS-020 — Barrido responsive
 
@@ -477,9 +511,23 @@ conectado a `github.com/Ragnarsss/alienskilez-web` (rama `main`), build automát
 (`npm run build`, salida `dist/`). Pasó primero por AWS S3 + CloudFront a mano; se migró a Amplify
 por el build+deploy automático desde el repo (detalle en ADR-16).
 
-Ya no es cierto que sea "sin variables de entorno": ALS-023 agregó `VITE_GA_MEASUREMENT_ID` y
-ALS-044 agregó `VITE_SPOTIFY_CATALOG_URL`, ambas cargadas a mano en la consola de Amplify (ver
-`.env.example` para el contrato de cada una).
+Ya no es cierto que sea "sin variables de entorno": ALS-023 agregó `VITE_GA_MEASUREMENT_ID`,
+ALS-044 agregó `VITE_SPOTIFY_CATALOG_URL` y ALS-045 agregó `VITE_YOUTUBE_CATALOG_URL`, las tres
+cargadas a mano en la consola de Amplify (ver `.env.example` para el contrato de cada una).
+
+**Incidente real (2026-08-26): las dos secciones de catálogo (Discografía y Video) se veían en
+producción mostrando el fallback ("No pudimos cargar el catálogo en vivo ahora mismo") en vez del
+catálogo real.** Diagnosticado bajando el bundle real de `deotroplaneta.cl` y confirmando que no
+contenía ninguna Function URL (`grep` directo sobre el JS servido) — no era un bug de código, las
+dos variables de entorno (`VITE_SPOTIFY_CATALOG_URL`/`VITE_YOUTUBE_CATALOG_URL`) no estaban
+cargadas en la consola de Amplify para ese build. `.env` es local y está en `.gitignore` — nunca
+viaja al build de Amplify por sí solo, cargarlo en la consola es un paso manual aparte que hay que
+recordar hacer cada vez que se agrega una variable nueva. Corregido cargando ambas y disparando un
+redeploy; verificado después con el mismo método (bundle nuevo con ambas URLs, `curl` directo a
+las dos Function URLs con `Origin: https://deotroplaneta.cl` confirmando `200` + CORS correcto).
+
+**Lección para la próxima variable `VITE_*` nueva:** cargarla en Amplify es parte de la
+Definition of Done del ticket que la introduce, no un paso aparte que se puede dar por hecho.
 
 **El plan original ataba esto a ALS-019 (Lighthouse/a11y) y ALS-020 (responsive) antes de
 desplegar — no se esperó.** El deploy real a Amplify ya existe sin que esos dos sigan `Pendiente`,
@@ -656,18 +704,21 @@ cita, sin hueco; misma regla de autorización que el texto.
 
 ### ALS-036 — Referencia de sonido en el formulario
 
-- Prioridad: P2 · Esfuerzo: S · Estado: Propuesto
+- Prioridad: P2 · Esfuerzo: S · **Estado: Hecho** (2026-08-26)
 - HU-BKG-002 · CU-BKG-001 · RF-BKG-006
 
 Campo opcional para pegar un enlace (Spotify, YouTube, Drive) como referencia de lo que el artista
 busca. "Quiero que suene tipo X" es como los artistas explican realmente lo que quieren.
 
-**Es el ticket con mejor relación impacto/esfuerzo de esta épica:** un campo, una validación de URL
-en el schema y una línea más en `buildWhatsAppMessage()`. Mejora la calidad del lead y le ahorra al
-Productor una ronda completa de repreguntas.
+**Implementación:** campo `soundReferenceUrl` en `booking.schema.ts` (opcional, `.refine` con
+`z.string().url()` — vacío se omite, un valor no-URL se rechaza con mensaje propio, no fuerza
+ninguna plataforma específica). Nueva línea en `buildWhatsAppMessage()` (entre fecha estimada y
+detalle). Input `type="url"` en `Contacto.tsx`, mismo patrón de label/error/`aria-describedby`
+que el resto del formulario.
 
-**Criterios:** un enlace válido viaja en el mensaje como línea propia; uno inválido se rechaza con
-motivo; vacío se omite.
+**Criterios (verificados):** un enlace válido viaja en el mensaje como línea propia; uno inválido
+se rechaza con motivo; vacío se omite. 6 tests nuevos en `booking.schema.test.ts` (59 en total).
+`lint`/`test`/`build` limpios.
 
 ## Épica I — Refinamiento visual (estético)
 
@@ -726,6 +777,12 @@ documento completo) suavizado con `useSpring`. Pedido de paso al construir el ca
 
 **Falta:** los marcadores/navegación por secciones del alcance original — no se construyeron,
 no inventar que sí.
+
+**Corrección de accesibilidad (2026-08-25, auditoría con la skill `accesibilidad-audit`):** la
+primera versión no tenía chequeo propio de `prefers-reduced-motion` — `useSpring`/`useScroll` son
+motion imperativo, `MotionConfig` no los cubre (`design-system.md` §6.3). Corregido: con
+reduced-motion la barra se queda (sigue siendo información útil, no dispara mareo/vestibular) pero
+sin el suavizado del spring — usa `scrollYProgress` crudo.
 
 ### ALS-041 — Preloader de marca
 
@@ -988,21 +1045,174 @@ disponible en este entorno para capturarlo, queda para QA manual (ver `quality-g
 
 ---
 
+## Épica K — Tienda de beats exclusivos *(propuesta 2026-11-26, nada construido)*
+
+Trazabilidad común: ADR-17 · RF-11 · `rf-rnf-catalogo.md` §2.3 y §2.4 · flujos en
+[`tienda-beats.md`](./tienda-beats.md) §4. Todos los tickets: Estado **Propuesto**.
+
+Orden de construcción: decisiones del Productor → infraestructura → dominio → API → frontend
+público → pago → entrega → panel → legal. La lógica de dominio (ALS-050) va antes que cualquier
+pantalla porque es donde está el riesgo real: vender dos veces el mismo beat.
+
+### ALS-048 — Decisiones del Productor para la tienda
+
+- Prioridad: **P1** · Esfuerzo: S · Bloquea: ALS-054, ALS-057, lanzamiento
+
+Pasarela (Mercado Pago o Flow), qué se entrega (WAV, stems, proyecto), plantilla del contrato de
+exclusividad, precios y beats del lanzamiento, vendidos ocultos o visibles, duración de la reserva,
+canal del aviso de venta. Lista completa en `tienda-beats.md` §5.
+
+**Criterio:** cada decisión de `tienda-beats.md` §5 tiene respuesta escrita del Productor.
+**Bloqueado por:** Productor.
+
+### ALS-049 — Infraestructura base del backend
+
+- Prioridad: **P1** · Esfuerzo: M · RNF-SEG-003, RNF-SEG-005, RNF-SEG-006
+
+Tablas DynamoDB `beats` y `pedidos`, un solo bucket S3 privado, secretos en Secrets Manager,
+Lambda con Express (`serverless-http`) y Function URL con CORS restringido. Registro del despliegue
+en un README propio, como `aws/spotify-catalog/`.
+
+**Criterios:** `GET /salud` responde desde la Function URL; una key del bucket privado devuelve 403
+sin firma; una petición desde otro origen es rechazada por CORS.
+
+### ALS-050 — Dominio: reserva atómica, vencimiento y total
+
+- Prioridad: **P1** · Esfuerzo: M · RF-PAG-002, RF-PAG-003, RF-CAR-004, RNF-INT-003, RNF-MNT-004
+
+Módulos puros (sin Express): cálculo del total desde precios del servidor, construcción de la
+transacción condicional de reserva, regla de vencimiento perezoso, transiciones de estado del beat.
+
+**Criterios:** tests verdes para: reserva de varios beats (todos o ninguno), reserva vencida
+reutilizable, total que ignora precios del cliente, transición inválida rechazada.
+
+### ALS-051 — API pública del catálogo
+
+- Prioridad: P1 · Esfuerzo: S · RF-CAT-002, RF-CAR-003 · Flujos 4.1, 4.2
+
+`GET /beats` (sin `previewKey` ni `entregaKeys`), `GET /beats/:id/preview` (lee del bucket
+privado, reenvía `Range`) y `POST /carrito/validar`.
+
+**Criterios:** un beat `borrador` no aparece; uno reservado con `reservadoHasta` vencido aparece
+como disponible; la preview permite adelantar (`206`) y la de un beat vendido devuelve 404.
+
+### ALS-052 — Página de catálogo
+
+- Prioridad: P1 · Esfuerzo: L · RF-CAT-001 a 006, RNF-RND-003 · Flujo 4.1
+
+`catalogo.html` como segunda entrada de Vite, grilla, previews con una sola reproducción a la vez,
+filtros en el cliente.
+
+**Criterios:** la landing no descarga JS del catálogo; bundle y Lighthouse de la landing iguales a
+la línea base; checklist de `quality-gates.md` aplicado a la página nueva.
+
+### ALS-053 — Carrito
+
+- Prioridad: P1 · Esfuerzo: M · RF-CAR-001 a 003 · Flujo 4.2
+
+Persistido en `localStorage`, leído con `useSyncExternalStore`, validado contra la API al abrirse.
+
+**Criterio:** sin duplicados; sobrevive a recarga; un beat vendido mientras tanto se quita con aviso.
+
+### ALS-054 — Checkout y creación del pago
+
+- Prioridad: P1 · Esfuerzo: M · RF-PAG-001, 002, 004 · Flujo 4.3
+
+**Criterios:** zod en cliente y servidor; dos checkouts simultáneos del mismo beat: uno reserva y el
+otro recibe 409; el pago se crea con URL de webhook, retorno y vencimiento igual a la reserva.
+**Bloqueado por:** ALS-048 (pasarela), ALS-050.
+
+### ALS-055 — Webhook de la pasarela
+
+- Prioridad: **P1** · Esfuerzo: L · RF-PAG-005, 006, 008, 009 · Flujos 4.4, 4.6
+
+**Criterios:** un `POST` falso no cambia nada (se consulta el pago a la API); el mismo aviso dos veces
+produce una sola entrega; rechazo libera la reserva; pago tardío con beat ya vendido queda en
+`reembolso_requerido` y avisa al Productor.
+
+### ALS-056 — Página de retorno `/gracias`
+
+- Prioridad: P1 · Esfuerzo: S · RF-PAG-007 · Flujo 4.5
+
+**Criterio:** muestra pendiente, pagado o rechazado consultando el backend; el query string no
+decide nada; tras 60 s pendiente, mensaje de "te avisaremos por correo".
+
+### ALS-057 — Entrega: descargas, contrato y correos
+
+- Prioridad: **P1** · Esfuerzo: L · RF-ENT-001 a 004 · Flujos 4.4, 4.10, 4.11
+
+Token de descarga opaco por pedido, `GET /descargas/:token/:archivo` con `302` a un destino firmado
+de ~1 min, contrato PDF por pedido, correo al comprador y aviso al Productor (SES).
+
+**Criterios:** el correo llega aunque el comprador cierre la pestaña; el correo no contiene URLs de
+S3; un token vencido o reemplazado muestra "enlace vencido".
+**Bloqueado por:** ALS-048 (plantilla del contrato, entregables).
+
+### ALS-058 — Inicio de sesión del panel con Google
+
+- Prioridad: P1 · Esfuerzo: M · RF-ADM-001, RNF-SEG-004 · Flujo 4.7
+
+**Criterios:** ID token verificado en el servidor; email fuera de la lista recibe 403; sesión en cookie
+`httpOnly`/`Secure`/`SameSite`, nada en `localStorage`.
+
+### ALS-059 — Panel: alta y publicación de beats
+
+- Prioridad: P1 · Esfuerzo: L · RF-ADM-002 a 004 · Flujo 4.8
+
+**Criterios:** los archivos suben a un destino opaco entregado por la API y la API confirma cada
+subida (un ZIP de cientos de MB funciona); el panel no construye URLs de storage; no se publica un
+beat sin precio, preview y entregables.
+
+### ALS-060 — Panel: pedidos, venta externa y archivo
+
+- Prioridad: P2 · Esfuerzo: M · RF-ADM-005 a 007 · Flujos 4.9, 4.10
+
+**Criterios:** vender por fuera con un pago en curso devuelve 409; reenviar descarga genera enlaces
+nuevos; un beat con pedido pagado no se puede borrar.
+
+### ALS-061 — Legal y tributario
+
+- Prioridad: **P1** · Esfuerzo: M · RNF-LEG-001, RNF-LEG-002
+
+Política de privacidad (Ley 21.719), términos de venta con retracto (Ley 19.496), emisión de boleta.
+
+**Criterio:** documentos publicados en la tienda y revisados por alguien con criterio legal; proceso
+de boleta definido con un contador.
+**Bloqueado por:** asesoría legal y contable (Productor).
+
+---
+
 ## 3. Diferido a propósito
 
 Decisiones conscientes, no olvidos. Justificación en [`architecture.md`](./architecture.md) §7.
 
 ### ALS-024 — Reducir el peso del JavaScript
 
-Actualizado tras resolver ALS-028 sin WebGL. El chunk de 320 kB que este ticket señalaba **ya no
-existe**: se eliminó al reemplazar Three.js por capas CSS, no optimizándolo.
+**Ya no diferido — disparado por datos reales (2026-08-26, ver ALS-019/`quality-gates.md` §2).**
+El intento intermedio de reemplazar el isotipo 3D por capas CSS (mencionado en una versión
+anterior de este ticket) se **revirtió**: ALS-028 volvió a 3D real con `3dsvg` porque las capas
+CSS daban volumen pero no material (detalle en ADR-12). El chunk de Three.js (320 kB gzip) sigue
+existiendo, y el primer Lighthouse real confirma que es el problema dominante: Performance 30-34
+mobile, LCP 5.2s, con 8.79s de scripting solo de ese chunk (`bootup-time`).
 
-Queda un solo frente: el bundle inicial de **157 kB gzip**, que excede el umbral verde de 150
-(`quality-gates.md` §2). El candidato más gordo es Framer Motion — el uso actual (scroll-reveal,
-paralaje del Hero, contadores de Alcance) es sustituible por IntersectionObserver + CSS, pero es
-un refactor grande y hoy no hay evidencia de que haga falta.
+**La causa concreta, no solo "es pesado":** `HeroMark3D` se monta sin ninguna condición en
+`Hero.tsx` — el Hero es la primera sección, siempre visible, así que el `lazy()` de ADR-12
+empieza a bajar y ejecutar el chunk casi de inmediato en cualquier visita. `lazy()` difiere
+*cuándo se evalúa* el import, no lo esconde detrás de una interacción real.
 
-Se decide con el Lighthouse de ALS-019 en la mano. Optimizar sin medir es adivinar.
+**Caminos a evaluar (ninguno implementado todavía, a decidir con el usuario):**
+1. Cargar el 3D solo tras una interacción explícita (scroll más allá del Hero, o un clic) — el
+   glyph plano de respaldo (ya existe, ADR-12) queda como el estado inicial real, no solo como
+   fallback de error.
+2. Diferir el chunk detrás de un `requestIdleCallback`/tiempo mínimo tras el primer paint, para
+   que compita menos con LCP/TBT sin sacar la interacción de arrastre.
+3. El bundle inicial (~167 kB gzip, aparte del chunk 3D) sigue en amarillo (umbral verde 150 kB)
+   — Framer Motion es el candidato más gordo (scroll-reveal, paralaje, contadores), sustituible
+   por IntersectionObserver + CSS, pero es un refactor grande sin evidencia de que sea la
+   prioridad frente al chunk 3D.
+
+**Bloqueante para el camino crítico de lanzamiento** mientras Performance esté en rojo — ya no es
+una mejora "cuando haya tiempo".
 
 ### ALS-025 — Preselección del servicio desde las cards
 
@@ -1033,7 +1243,7 @@ vista. Ver ADR-5.
 | ALS-015 | D     | P1     | L        | ✅ Hecho                           | —                                |
 | ALS-016 | E     | P1     | S        | Pendiente                          | ALS-006                          |
 | ALS-017 | E     | P2     | S        | Pendiente                          | —                                |
-| ALS-018 | E     | **P1**     | S        | Pendiente                          | —                                |
+| ALS-018 | E     | **P1**     | S        | ✅ Hecho                           | —                                |
 | ALS-019 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-020 | E     | P1     | S        | Pendiente                          | —                                |
 | ALS-021 | F     | P1     | L        | ✅ Hecho                           | —                                |
@@ -1042,7 +1252,7 @@ vista. Ver ADR-5.
 | ALS-046 | F     | P2     | S        | Propuesto — revierte una ADR, no implementar sin ADR nueva | — |
 | ALS-047 | F     | P3     | M        | Propuesto                          | Acceso de solo-lectura a IAM (Productor) |
 | ALS-062 | F     | P1     | S        | ✅ Hecho                           | —                                |
-| ALS-024 | —     | —      | —        | Diferido                           | ALS-019                          |
+| ALS-024 | E     | **P1** | M        | Disparado por datos reales (2026-08-26) — Performance 30-34, no implementado | Decisión de camino con el usuario |
 | ALS-025 | —     | —      | —        | Diferido                           | —                                |
 | ALS-026 | G     | **P1** | M        | ✅ Hecho                           | —                                 |
 | ALS-027 | G     | P2     | M        | ✅ Hecho                           | —                                 |
@@ -1056,6 +1266,7 @@ vista. Ver ADR-5.
 | ALS-040 | I     | P3     | S        | Parcial — barra de progreso hecha, navegación por secciones no | — |
 | ALS-041 | I     | P3     | S        | ✅ Hecho — Lighthouse (ALS-019) todavía no corrido | — |
 | ALS-043 | I     | P2     | M        | ✅ Hecho — QA visual manual pendiente | —                |
+| ALS-036 | H     | P2     | S        | ✅ Hecho                           | —                                 |
 
 ### Alcance propuesto (mejoras, nada construido)
 
@@ -1064,17 +1275,36 @@ vista. Ver ADR-5.
 | ALS-033 | H | **P1** | L | Comparador antes/después de mezcla | Material de audio autorizado |
 | ALS-034 | H | P2 | M | Reproductor persistente al scrollear | ALS-033 |
 | ALS-035 | H | P2 | M | Testimonios en audio o video | ALS-005 |
-| ALS-036 | H | P2 | S | Referencia de sonido en el formulario | — |
 | ALS-037 | I | P2 | S | Fotos reales del estudio | ALS-006 (fotos) |
 | ALS-038 | I | P3 | M | Waveform reactivo en el Hero | — |
 | ALS-039 | I | P3 | M | Transición entre secciones | — |
 | ALS-042 | I | P3 | S | Cursor personalizado | — |
 
+### Tienda de beats — Épica K (propuesta, nada construido)
+
+| ID | Prio | Esfuerzo | Qué es | Bloqueado por |
+|---|---|---|---|---|
+| ALS-048 | **P1** | S | Decisiones del Productor | Productor |
+| ALS-049 | **P1** | M | Infraestructura base (Lambda, DynamoDB, S3) | — |
+| ALS-050 | **P1** | M | Dominio: reserva atómica y total | ALS-049 |
+| ALS-051 | P1 | S | API pública del catálogo | ALS-050 |
+| ALS-052 | P1 | L | Página de catálogo | ALS-051 |
+| ALS-053 | P1 | M | Carrito | ALS-051 |
+| ALS-054 | P1 | M | Checkout y creación del pago | ALS-048, ALS-050 |
+| ALS-055 | **P1** | L | Webhook de la pasarela | ALS-054 |
+| ALS-056 | P1 | S | Página de retorno `/gracias` | ALS-055 |
+| ALS-057 | **P1** | L | Entrega: descargas, contrato, correos | ALS-048, ALS-055 |
+| ALS-058 | P1 | M | Login del panel con Google | ALS-049 |
+| ALS-059 | P1 | L | Panel: alta y publicación de beats | ALS-058 |
+| ALS-060 | P2 | M | Panel: pedidos, venta externa, archivo | ALS-059 |
+| ALS-061 | **P1** | M | Legal y tributario | Asesoría (Productor) |
+
 **Orden recomendado, si hay que elegir:**
 
-1. **ALS-036** — el mejor impacto por esfuerzo de todo el backlog: un campo, una validación y una
-   línea en el builder del mensaje.
-2. **ALS-018** — cierra el único punto del embudo donde una falla es invisible y total.
+1. ~~**ALS-036**~~ — hecho (2026-08-26): el mejor impacto por esfuerzo de todo el backlog, ya
+   cerrado.
+2. ~~**ALS-018**~~ — hecho (2026-08-26): cierra el único punto del embudo donde una falla era
+   invisible y total.
 3. **ALS-033** — la mejora de más impacto en términos absolutos. El código es lo fácil; conseguir
    los pares de audio autorizados y con niveles emparejados es lo que la hace pesada.
 4. **ALS-023** — el código ya está, falta configurar el Measurement ID real y verificar el embudo
@@ -1090,9 +1320,11 @@ vista. Ver ADR-5.
 escriba que no iba a escribir. Es la parte del backlog más fácil de empezar y la que menos rinde.
 Si el tiempo es escaso, ALS-037 (fotos reales) y nada más.
 
-**Camino crítico al lanzamiento:** ALS-019 → ALS-020 → ALS-022. ALS-001 ya no bloquea.
-ALS-023 (GA4) tampoco bloquea el lanzamiento, pero cuanto antes esté después de ALS-022, antes
-hay datos reales para decidir ALS-024 y ALS-041.
+**Camino crítico al lanzamiento (actualizado 2026-08-26):** ALS-019 ya corrió — reveló que
+**ALS-024 pasa a ser bloqueante** (Performance 30-34, no un P3 diferido). Camino real ahora:
+**ALS-024 → ALS-020 → ALS-022.** ALS-001 ya no bloquea. ALS-023 (GA4) tampoco bloquea el
+lanzamiento, pero cuanto antes esté después de ALS-022, antes hay datos reales para decidir
+ALS-041.
 
 ## 5. Gobernanza
 

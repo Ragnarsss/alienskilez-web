@@ -21,33 +21,60 @@ consciente, ver `architecture.md` §7): los corre quien mergea.
 
 ## 2. Rendimiento
 
-### Línea base medida (2026-08-24, tras ALS-023)
+### Línea base medida (2026-08-26, ALS-019 — primer Lighthouse real de este proyecto)
 
 | Artefacto | Crudo | Gzip | Cuándo se descarga |
 |---|---|---|---|
 | `index.html` | 1.64 kB | 0.69 kB | Siempre |
-| CSS | 41.67 kB | 8.29 kB | Siempre |
-| **JS inicial** | 510.18 kB | **161.80 kB** | Siempre |
-| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** | En diferido, solo el isotipo del Hero |
+| CSS | ~44 kB | ~8.7 kB | Siempre |
+| **JS inicial** | ~530 kB | **~167 kB** | Siempre |
+| Chunk 3D (Three + fiber + drei) | 1,155.93 kB | **319.63 kB** | Se dispara con el Hero — ver más abajo, NO es tan diferido como se asumía |
 
-**Lectura honesta:** el JS inicial **excede el umbral verde de 150 kB**. Sigue en amarillo (no
-cruza a rojo, umbral 250 kB) — la subida desde los 157.27 kB de la línea base anterior combina
-ALS-023 (consentimiento de cookies + wrapper de eventos, ~4 kB gzip propios — no `gtag.js`: ese
-script de Google se carga aparte, async, recién cuando el visitante acepta el aviso de cookies, así
-que no cuenta en este número) con cambios en paralelo del mazo de Servicios/isotipo (ALS-043,
-`ServiciosDeck.tsx`/`AlienMark3D.tsx`) que se guardaron mientras se medía esto. Medido con
-`npm run build` únicamente — **el resto de esta tabla (Performance/Accessibility/LCP/CLS/INP) no se
-re-corrió**: este entorno no tiene Chrome instalado para ejecutar Lighthouse. Pendiente correr
-`npx lighthouse http://localhost:4173 --view` (mobile) y `--preset=desktop` en una máquina con
-Chrome antes de dar ALS-019/ALS-024 por verificados con este cambio.
+**Lighthouse real, contra `npm run build && npm run preview` (Chrome headless, `npx lighthouse`):**
 
-El chunk 3D es el dato incómodo: **el doble que todo el resto del sitio junto**, para un elemento
-decorativo. Está aislado con `lazy()` (ADR-12), así que no bloquea el primer render — el texto y
-los CTA pintan sin esperarlo, y si nunca llega queda el isotipo plano de respaldo. Pero sigue
-siendo ancho de banda que un visitante en datos móviles va a gastar en un alien que gira.
+| Métrica | Mobile | Desktop | Umbral verde |
+|---|---|---|---|
+| Performance | **30-34** 🔴 | **55** 🔴 | ≥ 90 |
+| Accessibility | **100** ✅ | — | ≥ 95 |
+| Best Practices | 96 ✅ (ver nota CORS) | — | ≥ 95 |
+| SEO | **100** ✅ | — | ≥ 95 |
+| LCP | **5.2s** 🔴 | 1.7s 🟢 | ≤ 2.5s |
+| CLS | 0.021 🟢 | 0.009 🟢 | ≤ 0.1 |
+| TBT | **8,130ms** 🔴 | 910ms 🟡 | (no listado acá, pero cualquier valor de 4 cifras en ms es grave) |
+| Speed Index | 9.9s 🔴 | 7.4s 🔴 | — |
 
-**Esto no está resuelto, está contenido.** La decisión de fondo se toma con los datos de ALS-019
-(Lighthouse real), no antes. Ver ALS-024.
+**Corrección de un supuesto que estaba mal, no solo un número desactualizado:** la línea base
+anterior afirmaba que el chunk 3D "no bloquea el primer render — el texto y los CTA pintan sin
+esperarlo" porque está detrás de `lazy()` (ADR-12). **Es falso, medido:** `HeroMark3D` se monta
+sin ninguna condición en `Hero.tsx` (siempre visible, es la primera sección) — `lazy()` difiere
+cuándo se *evalúa* el `import()`, no lo esconde detrás de una interacción o un breakpoint, así que
+el chunk de 1.15MB empieza a bajar y ejecutar casi de inmediato en cualquier visita. El LCP de
+5.2s en mobile lo confirma: el "no bloquea" nunca se verificó con datos reales hasta ahora — se
+dio por bueno el diseño (ADR-12), no el resultado medido. Detalle real de `bootup-time`: el chunk
+3D solo (`dist-*.js`) usa **8.79s de scripting** en mobile con throttling simulado 4x — es la
+causa dominante del TBT.
+
+**Tres hallazgos reales corregidos hoy, además del de performance:**
+1. **Accesibilidad (97→100):** `<p aria-label="…">` en el subhead del Hero — `aria-label` es un
+   atributo ARIA prohibido en un `<p>` sin rol que soporte "naming". Corregido con el mismo
+   patrón que ya usa `Kicker.tsx` (`sr-only` + `aria-hidden`, sin ARIA de más).
+2. **SEO (91→100):** no existía `public/robots.txt` — el servidor devolvía el fallback SPA
+   (`index.html`) para esa ruta, y Lighthouse lo detectaba como "robots.txt inválido". Agregado
+   uno mínimo (`User-agent: * / Allow: /`). *(2026-11-26: ese archivo nunca se había commiteado y
+   producción seguía devolviendo 404; ahora está en el repo junto a `public/sitemap.xml` y el
+   `<link rel="canonical">` del `index.html`, los tres alineados a `https://deotroplaneta.cl` y
+   cubiertos por `src/test/seo.test.ts`.)*
+3. **Best Practices (errores de consola):** CORS bloqueado contra las dos Function URLs — **es un
+   artefacto del puerto de `vite preview` (4173/4174), no un bug real**: el CORS de ambas Lambdas
+   solo permite `localhost:5173` (el puerto real de `npm run dev`) y el dominio de producción, ver
+   `aws/spotify-catalog/README.md`/`aws/youtube-catalog/README.md`. No se "arregla" nada acá —
+   correr contra el dominio real o `npm run dev` no lo reproduce.
+
+**Esto ya no está "contenido", está medido y es rojo.** La decisión de fondo (ALS-024: reemplazar
+o diferir de verdad el chunk 3D — ej. cargarlo solo tras una interacción explícita, o solo si
+`prefers-reduced-motion` no está activo y el visitante ya hizo scroll) se toma ahora con estos
+números en la mano, no antes. Bloqueante para el camino crítico de lanzamiento hasta que
+Performance salga de rojo.
 
 ### Umbrales
 
